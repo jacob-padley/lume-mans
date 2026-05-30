@@ -1,8 +1,10 @@
 export default defineAppConfig({
   ui: {
-    colors: {
-      primary: 'green',
-      neutral: 'slate'
+    pageHeader: {
+      slots: {
+        root: 'border-none',
+        title: 'font-mono uppercase tracking-widest text-4xl mx-auto'
+      }
     }
   }
 })
