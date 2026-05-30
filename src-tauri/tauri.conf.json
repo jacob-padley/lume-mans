@@ -12,8 +12,8 @@
   "app": {
     "windows": [
       {
-        "title": "link-mans",
-        "width": 800,
+        "title": "Link Mans",
+        "width": 360,
         "height": 600
       }
     ],
