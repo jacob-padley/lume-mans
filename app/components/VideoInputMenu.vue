@@ -6,6 +6,7 @@
     :disabled="disabled"
     :search-input="false"
     class="font-mono justify-center"
+    :highlight="!disabled && model === -1"
     :ui="{
       item: 'font-mono',
     }"
