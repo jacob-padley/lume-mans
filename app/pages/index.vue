@@ -1,10 +1,17 @@
 <template>
-  <div>
+  <div class="flex flex-col w-full items-center">
     <UPageHeader title="Link Mans" />
-    <TrackStatus class="mx-auto w-3/4 h-24 mb-3"> Track Clear </TrackStatus>
-    <CaptureToggle class="mx-auto block mt-10 mb-3" />
-    <VideoInputMenu class="mx-auto block w-3/4" />
+    <TrackStatus class="w-3/4 h-24 mb-3"> Track Clear </TrackStatus>
+    <CaptureToggle
+      v-model="captureEnabled"
+      :disabled="videoInputId === -1"
+      class="mt-10 mb-3 w-40"
+    />
+    <VideoInputMenu v-model="videoInputId" :disabled="captureEnabled" class="w-3/4" />
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+const captureEnabled = ref(false);
+const videoInputId = ref(-1);
+</script>

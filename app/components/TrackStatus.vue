@@ -1,5 +1,7 @@
 <template>
-  <div class="flex justify-center font-mono text-xl tracking-wide bg-green-700 rounded-xl">
+  <div
+    class="flex justify-center font-mono uppercase text-xl tracking-wide bg-green-700 rounded-xl"
+  >
     <p class="my-auto">
       <slot />
     </p>
