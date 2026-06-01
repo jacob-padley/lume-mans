@@ -1,8 +1,8 @@
-@import "tailwindcss";
-@import "@nuxt/ui";
+@import 'tailwindcss';
+@import '@nuxt/ui';
 
 @theme {
-  --font-mono: "Geist Mono", sans-serif;
+  --font-mono: 'Geist Mono', sans-serif;
 
   --color-primary: var(--color-cyan-400);
 

@@ -3,8 +3,8 @@ export default defineAppConfig({
     pageHeader: {
       slots: {
         root: 'border-none',
-        title: 'font-mono uppercase tracking-widest text-4xl mx-auto'
-      }
-    }
-  }
-})
+        title: 'font-mono uppercase tracking-widest text-4xl mx-auto',
+      },
+    },
+  },
+});

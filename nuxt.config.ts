@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   ssr: false,
 
   devtools: {
-    enabled: true
+    enabled: true,
   },
 
   css: ['~/assets/css/main.css'],
@@ -13,11 +13,11 @@ export default defineNuxtConfig({
   ignore: ['**/src-tauri/**'],
 
   routeRules: {
-    '/': { prerender: true }
+    '/': { prerender: true },
   },
   // Enables the development server to be discoverable by other devices when running on iOS physical devices
   devServer: {
-    host: '0'
+    host: '0',
   },
 
   compatibilityDate: '2025-05-15',
@@ -30,16 +30,16 @@ export default defineNuxtConfig({
     envPrefix: ['VITE_', 'TAURI_'],
     server: {
       // Tauri requires a consistent port
-      strictPort: true
-    }
+      strictPort: true,
+    },
   },
 
   eslint: {
     config: {
       stylistic: {
         commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
-  }
-})
+        braceStyle: '1tbs',
+      },
+    },
+  },
+});
