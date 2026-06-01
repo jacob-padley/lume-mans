@@ -24,4 +24,18 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 xcap = "0.9.6"
 anyhow = "1.0.102"
+ocrs = "0.12.2"
+rten = "0.24.0"
 
+# Profile overrides for ocrs performance
+[profile.dev.package.ocrs]
+opt-level = 3
+
+[profile.dev.package.rten]
+opt-level = 3
+
+[profile.dev.package.rten-tensor]
+opt-level = 3
+
+[profile.dev.package.rten-image]
+opt-level = 3
