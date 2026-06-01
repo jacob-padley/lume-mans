@@ -4,5 +4,4 @@ import eslintConfigPrettier from 'eslint-config-prettier/flat';
 
 export default withNuxt({
   ignores: ['src-tauri/**'],
-  extends: [eslintConfigPrettier],
-});
+}, eslintConfigPrettier);

@@ -15,5 +15,9 @@ import { useVideoInputs } from '~/composables/useVideoInputs';
 
 const { availableInputs } = useVideoInputs();
 
-const inputs = computed(() => availableInputs.value.map((input) => input.name));
+const inputs = computed(() =>
+  availableInputs.value.map((input) =>
+    input.isPrimary ? `${input.name} (Primary Display)` : input.name,
+  ),
+);
 </script>

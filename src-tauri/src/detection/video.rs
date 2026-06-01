@@ -1,6 +1,5 @@
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use xcap::{XCapError};
-use anyhow::Result;
 
 /// VideoInput represents a source of video capture that the detection system can use to look for
 /// the current race status. Usually this means a system display device like a monitor.
@@ -13,7 +12,7 @@ pub struct VideoInput {
 
 impl VideoInput {
     /// Retrieve the list of all video input sources that can be used in detection currently.
-    pub fn all() -> Result<Vec<Self>> {
+    pub fn all() -> anyhow::Result<Vec<Self>> {
         let xcap_monitors = xcap::Monitor::all()?;
         let mut monitors: Vec<Self> = Vec::new();
 
@@ -41,7 +40,7 @@ impl Serialize for VideoInput {
 impl TryFrom<xcap::Monitor> for VideoInput {
     type Error = XCapError;
 
-    fn try_from(value: xcap::Monitor) -> Result<Self, Self::Error> {
+    fn try_from(value: xcap::Monitor) -> anyhow::Result<Self, Self::Error> {
         // ID is required, we allow the other fields to fail and fill them with defaults.
         let id = value.id()?;
         Ok(VideoInput {

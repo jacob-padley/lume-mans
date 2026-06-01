@@ -2,7 +2,7 @@
 @import '@nuxt/ui';
 
 @theme {
-  --font-mono: 'Geist Mono', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
 
   --color-primary: var(--color-cyan-400);
 
