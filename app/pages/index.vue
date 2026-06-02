@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col w-full items-center">
     <UPageHeader title="Link Mans" />
-    <TrackStatus class="w-3/4 h-24 mb-3"> Track Clear </TrackStatus>
+    <TrackStatus class="w-3/4 h-24 mb-3" />
     <CaptureToggle
       v-model="captureEnabled"
       :disabled="videoInputId === -1"

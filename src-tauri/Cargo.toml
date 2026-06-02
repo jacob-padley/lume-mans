@@ -27,6 +27,7 @@ anyhow = "1.0.102"
 ocrs = "0.12.2"
 rten = "0.24.0"
 tokio = { version = "1.52.3", features = ["time"] }
+regex = "1.12.3"
 
 # Profile overrides for ocrs performance
 [profile.dev.package.ocrs]

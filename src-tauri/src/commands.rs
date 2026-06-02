@@ -1,9 +1,10 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use tauri::State;
+use tauri::{AppHandle, State};
 use tokio::time::interval;
 
 use crate::detection::source::DetectionSource;
+use crate::detection::state::TrackState;
 use crate::detection::video::{VideoSource, VideoSourceOption};
 use crate::AppState;
 
@@ -33,7 +34,7 @@ pub fn set_capture_interval(interval: u32, state: State<'_, AppState>) -> Result
 }
 
 #[tauri::command]
-pub async fn start_capture(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
     if is_capturing.load(Ordering::SeqCst) {
@@ -50,7 +51,6 @@ pub async fn start_capture(state: State<'_, AppState>) -> Result<(), String> {
 
     tokio::spawn(async move {
         let mut ticker = interval(Duration::from_millis(interval_millis as u64));
-        println!("Capture started");
         loop {
             if !is_capturing.load(Ordering::SeqCst) {
                 break;
@@ -58,14 +58,18 @@ pub async fn start_capture(state: State<'_, AppState>) -> Result<(), String> {
             ticker.tick().await;
 
             let capture_source = capture_source_lock.read().unwrap();
-            let maybe_detected_state = capture_source.get_track_state();
-
+            let maybe_detected_state: anyhow::Result<TrackState>;
+            {
+                let state_manager = state_manager_lock.read().unwrap();
+                let current_state = state_manager.get_state();
+                maybe_detected_state = capture_source.get_track_state(current_state);
+            }
             match maybe_detected_state {
                 Ok(state) => {
                     let mut state_manager = state_manager_lock.write().unwrap();
-                    state_manager.set_state(state);
+                    state_manager.set_state(state, &app);
                 }
-                Err(_) => println!("Couldn't read track state"),
+                Err(_) => (),
             }
         }
     });
