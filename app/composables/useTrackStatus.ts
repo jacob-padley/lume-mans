@@ -18,10 +18,18 @@ export type TrackStatus = z.infer<typeof TrackStatusSchema>;
 export function useTrackStatus() {
   const status = ref<TrackStatus>('Waiting');
 
-  listen<string>(
-    'track-status',
-    (event) => (status.value = TrackStatusSchema.parse(event.payload)),
-  );
+  let unlisten: (() => void) | undefined;
+
+  onMounted(async () => {
+    unlisten = await listen<string>(
+      'track-status',
+      (event) => (status.value = TrackStatusSchema.parse(event.payload)),
+    );
+  });
+
+  onUnmounted(() => {
+    unlisten?.();
+  });
 
   return { status };
 }

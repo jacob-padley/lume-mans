@@ -31,16 +31,16 @@ const fps = computed(() => {
 });
 
 watch(captureEnabled, (enabled) => {
-  if (enabled) {
-    invoke('start_capture');
-  } else {
-    invoke('stop_capture');
-  }
+  invoke(enabled ? 'start_capture' : 'stop_capture').catch((e) => {
+    console.error(e);
+  });
 });
 
 watch(videoInputId, (id) => {
   if (id !== -1) {
-    invoke('set_capture_device', { id });
+    invoke('set_capture_device', { id }).catch((e) => {
+      console.error(e);
+    });
   }
 });
 </script>

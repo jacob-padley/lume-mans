@@ -106,11 +106,11 @@ impl VideoSource {
                 session_start: Regex::new(r"\d+:\d+:(\d+)").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
-                safety_car: Regex::new(r"SC|SAFETY\W+CAR").unwrap(),
-                virtual_safety_car: Regex::new(r"VSC|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
+                safety_car: Regex::new(r"\bSC\b|SAFETY\W+CAR").unwrap(),
+                virtual_safety_car: Regex::new(r"\bVSC\b|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
                 safety_car_ending: Regex::new(r"ENDING|SAFETY\W+CAR\W+IN\W+THIS\W+LAP").unwrap(),
                 checkered_flag: Regex::new(r"FINISH").unwrap(),
-                full_course_yellow: Regex::new(r"FCY|FULL\W+COURSE\W+YELLOW").unwrap(),
+                full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
                 red_flag: Regex::new(r"RED\W+FLAG").unwrap(),
             },
         })
@@ -207,14 +207,14 @@ impl DetectionSource for VideoSource {
             {
                 return Ok(TrackState::FullCourseYellow);
             } else if *current_state != TrackState::SafetyCarEnding {
-                if self.detection_patterns.safety_car.is_match(&status_text) {
-                    return Ok(TrackState::SafetyCar);
-                } else if self
+                if self
                     .detection_patterns
                     .virtual_safety_car
                     .is_match(&status_text)
                 {
                     return Ok(TrackState::VirtualSafetyCar);
+                } else if self.detection_patterns.safety_car.is_match(&status_text) {
+                    return Ok(TrackState::SafetyCar);
                 }
             } else if self
                 .detection_patterns

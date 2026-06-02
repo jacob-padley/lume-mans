@@ -54,7 +54,7 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
             let elapsed = now.duration_since(last_tick);
             last_tick = now;
             let frame_millis = elapsed.as_millis();
-            app.emit("last-frame-time", frame_millis).unwrap();
+            let _ = app.emit("last-frame-time", frame_millis);
 
             // Capture and process the next frame
             let capture_source = capture_source_lock.read().unwrap();

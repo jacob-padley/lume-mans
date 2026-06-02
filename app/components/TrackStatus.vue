@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { useTrackStatus } from '~/composables/useTrackStatus';
+import { useTrackStatus, type TrackStatus } from '~/composables/useTrackStatus';
 
 const { status } = useTrackStatus();
 
@@ -18,7 +18,7 @@ const prettyStatusMap = {
   SessionStart: 'Waiting for Race Start',
   GreenFlag: 'Green Flag',
   YellowFlag: 'Yellow Flag',
-  FullCourseYellow: 'Full Course Yellow',
+  FullCourseYellow: 'FCY',
   SafetyCar: 'Safety Car',
   VirtualSafetyCar: 'VSC',
   SafetyCarEnding: 'Safety Car Ending',
