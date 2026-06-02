@@ -2265,23 +2265,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "link-mans"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ocrs",
- "regex",
- "rten",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "xcap",
-]
-
-[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2319,6 +2302,23 @@ name = "log"
 version = "0.4.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "616ec5685824bcc94416c6d4a7a446eea774a31efd7062c8480ba6fd06d7a6e5"
+
+[[package]]
+name = "lume-mans"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "ocrs",
+ "regex",
+ "rten",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "xcap",
+]
 
 [[package]]
 name = "markup5ever"

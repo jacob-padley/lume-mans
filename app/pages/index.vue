@@ -1,10 +1,12 @@
 <template>
   <div class="flex flex-col w-full items-center">
-    <UPageHeader title="Link Mans" />
+    <div class="flex my-10 font-mono font-bold text-5xl uppercase tracking-widest">
+      <span>Lume</span><UIcon class="mx-2" name="i-lucide-lightbulb"></UIcon><span>Mans</span>
+    </div>
     <TrackStatus class="w-3/4 h-24 mb-3" />
-    <p class="font-mono h-[1em]">
+    <span class="font-mono h-[1em]">
       {{ captureEnabled ? `${fps.toFixed(1)} FPS (${lastFrameTime} ms)` : '' }}
-    </p>
+    </span>
     <CaptureToggle
       v-model="captureEnabled"
       :disabled="videoInputId === -1"

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "link-mans",
+  "productName": "lume-mans",
   "version": "0.1.0",
-  "identifier": "com.link-mans.app",
+  "identifier": "com.jacob-padley.lume-mans",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm generate",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Link Mans",
+        "title": "Lume Mans",
         "width": 360,
         "height": 600
       }

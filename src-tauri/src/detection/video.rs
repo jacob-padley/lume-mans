@@ -58,7 +58,7 @@ impl AbsoluteBoundingBox {
 /// the current race status. Usually this means a system display device like a monitor. A video
 /// source needs an OCR engine to perform text detection on the video image.
 pub struct VideoSource {
-    monitor: xcap::Monitor,
+    monitor: u32,
     ocr_engine: Arc<OcrEngine>,
     bounding_boxes: VideoDetectionBounds,
     detection_patterns: VideoDetectionPatterns,
@@ -91,7 +91,7 @@ impl VideoSource {
         let height = monitor.height()?;
 
         Ok(VideoSource {
-            monitor,
+            monitor: monitor.id()?,
             ocr_engine,
             bounding_boxes: VideoDetectionBounds {
                 status_box: AbsoluteBoundingBox::from_relative(STATUS_BOUNDING_BOX, width, height),
@@ -108,7 +108,8 @@ impl VideoSource {
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
                 safety_car: Regex::new(r"\bSC\b|SAFETY\W+CAR").unwrap(),
                 virtual_safety_car: Regex::new(r"\bVSC\b|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
-                safety_car_ending: Regex::new(r"ENDING|SAFETY\W+CAR\W+IN\W+THIS\W+LAP").unwrap(),
+                safety_car_ending: Regex::new(r"\bENDING\b|SAFETY\W+CAR\W+IN\W+THIS\W+LAP")
+                    .unwrap(),
                 checkered_flag: Regex::new(r"FINISH").unwrap(),
                 full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
                 red_flag: Regex::new(r"RED\W+FLAG").unwrap(),
@@ -123,7 +124,11 @@ impl DetectionSource for VideoSource {
         let timer_box = &self.bounding_boxes.timer_box;
         let notification_box = &self.bounding_boxes.notification_box;
 
-        let image = DynamicImage::ImageRgba8(self.monitor.capture_image()?);
+        let image = DynamicImage::ImageRgba8(
+            VideoSourceOption::from_id(self.monitor)?
+                .get_monitor()?
+                .capture_image()?,
+        );
 
         let status_cropped = image
             .crop_imm(
@@ -178,11 +183,16 @@ impl DetectionSource for VideoSource {
             }
         } else if *current_state == TrackState::SafetyCar {
             // See if safety car is in this lap
+            let status_text = self.ocr_engine.get_text(&status_input)?.to_uppercase();
             let notification_text = self.ocr_engine.get_text(&notification_input)?;
             if self
                 .detection_patterns
                 .safety_car_ending
                 .is_match(&notification_text)
+                || self
+                    .detection_patterns
+                    .safety_car_ending
+                    .is_match(&status_text)
             {
                 return Ok(TrackState::SafetyCarEnding);
             }
@@ -216,12 +226,6 @@ impl DetectionSource for VideoSource {
                 } else if self.detection_patterns.safety_car.is_match(&status_text) {
                     return Ok(TrackState::SafetyCar);
                 }
-            } else if self
-                .detection_patterns
-                .safety_car_ending
-                .is_match(&status_text)
-            {
-                return Ok(TrackState::SafetyCarEnding);
             } else if self.detection_patterns.red_flag.is_match(&status_text) {
                 return Ok(TrackState::RedFlag);
             }
@@ -308,7 +312,9 @@ impl TryFrom<xcap::Monitor> for VideoSourceOption {
         let id = value.id()?;
         Ok(VideoSourceOption {
             id,
-            name: value.name().unwrap_or(String::from("Unknown")),
+            name: value
+                .friendly_name()
+                .unwrap_or(String::from("Unknown Display")),
             is_primary: value.is_primary().unwrap_or(false),
         })
     }

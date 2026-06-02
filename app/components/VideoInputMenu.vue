@@ -1,7 +1,8 @@
 <template>
   <USelectMenu
     v-model="selectedInputEntry"
-    placeholder="Select Video Input Device"
+    placeholder="Select Video Source"
+    icon="i-lucide-monitor"
     :items="inputs"
     :disabled="disabled"
     :search-input="false"
