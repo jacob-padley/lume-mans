@@ -13,12 +13,7 @@ struct AppState {
     ocr_engine: Arc<OcrEngine>,
     capture_active: Arc<AtomicBool>,
     capture_source: Arc<RwLock<VideoSource>>,
-    capture_settings: RwLock<CaptureSettings>,
     state_manager: Arc<RwLock<TrackStateManager>>,
-}
-
-struct CaptureSettings {
-    interval: u32,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -60,7 +55,6 @@ pub fn run() {
                 ocr_engine: ocr_engine.clone(),
                 capture_active: Arc::new(AtomicBool::new(false)),
                 capture_source: Arc::new(RwLock::new(default_capture_source)),
-                capture_settings: RwLock::new(CaptureSettings { interval: 1000 }),
                 state_manager: Arc::new(RwLock::new(TrackStateManager::new())),
             });
 
@@ -70,7 +64,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_inputs,
             commands::set_capture_device,
-            commands::set_capture_interval,
             commands::start_capture,
             commands::stop_capture
         ])

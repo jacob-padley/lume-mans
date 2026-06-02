@@ -24,13 +24,12 @@ impl TrackStateManager {
         }
     }
 
-    pub fn set_state(&mut self, state: TrackState, handle: &AppHandle) -> anyhow::Result<()> {
+    pub fn set_state(&mut self, state: TrackState, handle: &AppHandle) {
         if state != self.state {
             println!("Track state update: {:?} -> {:?}", self.state, state);
             self.state = state;
-            handle.emit("track-status", &self.state)?;
+            handle.emit("track-status", &self.state).unwrap();
         }
-        Ok(())
     }
 
     pub fn get_state(&self) -> &TrackState {

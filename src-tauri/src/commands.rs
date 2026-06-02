@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
-use std::time::Duration;
-use tauri::{AppHandle, State};
-use tokio::time::interval;
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter, State};
+use tokio::time::{interval, MissedTickBehavior};
 
 use crate::detection::source::DetectionSource;
 use crate::detection::state::TrackState;
@@ -26,14 +26,6 @@ pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(
 }
 
 #[tauri::command]
-pub fn set_capture_interval(interval: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let mut settings = state.capture_settings.write().unwrap();
-    settings.interval = interval;
-
-    Ok(())
-}
-
-#[tauri::command]
 pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
@@ -43,20 +35,28 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
 
     is_capturing.store(true, Ordering::SeqCst);
 
-    let settings = state.capture_settings.read().unwrap();
-
     let capture_source_lock = state.capture_source.clone();
     let state_manager_lock = state.state_manager.clone();
-    let interval_millis = settings.interval;
+
+    let mut last_tick = Instant::now();
 
     tokio::spawn(async move {
-        let mut ticker = interval(Duration::from_millis(interval_millis as u64));
+        let mut ticker = interval(Duration::from_millis(200));
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
             if !is_capturing.load(Ordering::SeqCst) {
-                break;
+                return;
             }
             ticker.tick().await;
 
+            // Emit the last frame time to display on the frontend
+            let now = Instant::now();
+            let elapsed = now.duration_since(last_tick);
+            last_tick = now;
+            let frame_millis = elapsed.as_millis();
+            app.emit("last-frame-time", frame_millis).unwrap();
+
+            // Capture and process the next frame
             let capture_source = capture_source_lock.read().unwrap();
             let maybe_detected_state: anyhow::Result<TrackState>;
             {
