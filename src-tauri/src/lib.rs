@@ -1,20 +1,22 @@
+mod commands;
+mod detection;
+
 use tauri::{Manager, path::BaseDirectory};
 use rten::Model;
 use ocrs::{OcrEngine, OcrEngineParams};
-use std::sync::{Arc, Mutex, atomic::AtomicBool};
+use std::sync::{Arc, RwLock, atomic::AtomicBool};
 
-mod commands;
-mod detection;
+use crate::detection::video::VideoInput;
 
 struct AppState {
     ocr_engine: Arc<OcrEngine>,
     capture_active: Arc<AtomicBool>,
-    capture_settings: Mutex<CaptureSettings>,
+    capture_device: Arc<RwLock<VideoInput>>,
+    capture_settings: RwLock<CaptureSettings>,
 }
 
 struct CaptureSettings {
     interval: u32,
-    device: u32,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,11 +38,14 @@ pub fn run() {
                 recognition_model: Some(recognition_model),
                 ..Default::default()
             }).expect("Failed to initialise OCR engine");
+
+            let default_capture_device = VideoInput::primary().expect("Failed to find primary video capture device");
             
             app.manage(AppState {
                 ocr_engine: Arc::new(ocr_engine),
                 capture_active: Arc::new(AtomicBool::new(false)),
-                capture_settings: Mutex::new(CaptureSettings {device: 0, interval: 1000})
+                capture_device: Arc::new(RwLock::new(default_capture_device)),
+                capture_settings: RwLock::new(CaptureSettings {interval: 1000})
             });
 
             Ok(())

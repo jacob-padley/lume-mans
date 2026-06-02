@@ -17,10 +17,57 @@ impl VideoInput {
         let mut monitors: Vec<Self> = Vec::new();
 
         for xcap_monitor in xcap_monitors {
-            let input = VideoInput::try_from(xcap_monitor)?;
+            let input = Self::try_from(xcap_monitor)?;
             monitors.push(input);
         }
         Ok(monitors)
+    }
+
+    pub fn primary() -> anyhow::Result<Self> {
+        let xcap_monitors = xcap::Monitor::all()?;
+
+        for xcap_monitor in xcap_monitors {
+            if xcap_monitor.is_primary().unwrap_or(false) {
+                return Ok(Self::try_from(xcap_monitor)?)
+            }
+        }
+
+        Err(anyhow::Error::msg("No primary monitor found"))
+    }
+
+    pub fn from_id(id: u32) -> anyhow::Result<Self> {
+        let xcap_monitors = xcap::Monitor::all()?;
+
+        for xcap_monitor in xcap_monitors {
+            let maybe_monitor_id = xcap_monitor.id();
+            match maybe_monitor_id {
+                Ok(monitor_id) => {
+                    if monitor_id == id {
+                        return Ok(Self::try_from(xcap_monitor)?)
+                    }
+                },
+                Err(_) => (),
+            }
+        }
+
+        Err(anyhow::Error::msg("No primary monitor found"))
+    }
+
+    pub fn get_monitor(&self) -> anyhow::Result<xcap::Monitor> {
+        let xcap_monitors = xcap::Monitor::all()?;
+
+        for xcap_monitor in xcap_monitors {
+            let maybe_monitor_id = xcap_monitor.id();
+            match maybe_monitor_id {
+                Ok(monitor_id) => {
+                    if monitor_id == self.id {
+                        return Ok(xcap_monitor)
+                    }
+                },
+                Err(_) => (),
+            }
+        }
+        Err(anyhow::Error::msg("Monitor not found"))
     }
 }
 
