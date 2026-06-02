@@ -166,10 +166,10 @@ impl DetectionSource for VideoSource {
             // See if the timer has begun to tick down
             let timer_text = self.ocr_engine.get_text(&timer_input)?;
             let caps = self.detection_patterns.session_start.captures(&timer_text);
-            if caps.is_some() {
-                let last_digits = caps.unwrap().get(1);
-                if last_digits.is_some() {
-                    let timer_seconds = last_digits.unwrap().as_str().parse::<i32>().unwrap_or(0);
+            if let Some(groups) = caps {
+                let last_digits = groups.get(1);
+                if let Some(seconds) = last_digits {
+                    let timer_seconds = seconds.as_str().parse::<i32>().unwrap_or(0);
                     if timer_seconds > 0 {
                         // Race has started
                         return Ok(TrackState::GreenFlag);
@@ -272,13 +272,10 @@ impl VideoSourceOption {
 
         for xcap_monitor in xcap_monitors {
             let maybe_monitor_id = xcap_monitor.id();
-            match maybe_monitor_id {
-                Ok(monitor_id) => {
-                    if monitor_id == id {
-                        return Ok(Self::try_from(xcap_monitor)?);
-                    }
+            if let Ok(monitor_id) = maybe_monitor_id {
+                if monitor_id == id {
+                    return Ok(Self::try_from(xcap_monitor)?);
                 }
-                Err(_) => (),
             }
         }
 
@@ -293,13 +290,10 @@ impl VideoSourceOption {
 
         for xcap_monitor in xcap_monitors {
             let maybe_monitor_id = xcap_monitor.id();
-            match maybe_monitor_id {
-                Ok(monitor_id) => {
-                    if monitor_id == self.id {
-                        return Ok(xcap_monitor);
-                    }
+            if let Ok(monitor_id) = maybe_monitor_id {
+                if monitor_id == self.id {
+                    return Ok(xcap_monitor);
                 }
-                Err(_) => (),
             }
         }
         Err(anyhow::Error::msg("Monitor not found"))

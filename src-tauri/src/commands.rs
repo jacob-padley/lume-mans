@@ -64,12 +64,9 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
                 let current_state = state_manager.get_state();
                 maybe_detected_state = capture_source.get_track_state(current_state);
             }
-            match maybe_detected_state {
-                Ok(state) => {
-                    let mut state_manager = state_manager_lock.write().unwrap();
-                    state_manager.set_state(state, &app);
-                }
-                Err(_) => (),
+            if let Ok(state) = maybe_detected_state {
+                let mut state_manager = state_manager_lock.write().unwrap();
+                state_manager.set_state(state, &app);
             }
         }
     });
