@@ -23,7 +23,7 @@ const prettyStatusMap = {
   VirtualSafetyCar: 'VSC',
   SafetyCarEnding: 'Safety Car Ending',
   RedFlag: 'Red Flag',
-  CheckeredFlag: 'Checkered Flag',
+  CheckeredFlag: ' ', // No text since we will display a checkered background
 };
 
 function prettyStatus(status: TrackStatus) {
@@ -47,8 +47,10 @@ function statusClass(status: TrackStatus) {
     return 'bg-yellow-600';
   } else if (status === 'RedFlag') {
     return 'bg-red-600';
+  } else if (status === 'CheckeredFlag') {
+    return 'bg-[conic-gradient(#000_90deg,#fff_90deg_180deg,#000_180deg_270deg,#fff_270deg)] bg-[length:4rem_4rem]';
   }
 
-  return 'bg-slate-700';
+  return 'bg-slate-600';
 }
 </script>

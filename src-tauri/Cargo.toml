@@ -38,6 +38,3 @@ opt-level = 3
 
 [profile.dev.package.rten-tensor]
 opt-level = 3
-
-[profile.dev.package.rten-image]
-opt-level = 3

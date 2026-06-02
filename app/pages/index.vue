@@ -20,7 +20,6 @@ import { useMetrics } from '~/composables/useMetrics';
 
 const captureEnabled = ref(false);
 const videoInputId = ref(-1);
-const capturesPerSecond = ref(1);
 
 const { lastFrameTime } = useMetrics();
 
@@ -44,12 +43,4 @@ watch(videoInputId, (id) => {
     invoke('set_capture_device', { id });
   }
 });
-
-watch(
-  capturesPerSecond,
-  (fps) => {
-    invoke('set_capture_interval', { interval: Math.round(1000 / fps) });
-  },
-  { immediate: true },
-);
 </script>

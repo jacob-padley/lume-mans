@@ -109,7 +109,7 @@ impl VideoSource {
                 safety_car: Regex::new(r"SC|SAFETY\W+CAR").unwrap(),
                 virtual_safety_car: Regex::new(r"VSC|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
                 safety_car_ending: Regex::new(r"ENDING|SAFETY\W+CAR\W+IN\W+THIS\W+LAP").unwrap(),
-                checkered_flag: Regex::new(r"CHECKERED\W+FLAG").unwrap(),
+                checkered_flag: Regex::new(r"FINISH").unwrap(),
                 full_course_yellow: Regex::new(r"FCY|FULL\W+COURSE\W+YELLOW").unwrap(),
                 red_flag: Regex::new(r"RED\W+FLAG").unwrap(),
             },
@@ -187,6 +187,12 @@ impl DetectionSource for VideoSource {
                 return Ok(TrackState::SafetyCarEnding);
             }
         } else {
+            // Check if the race is ending
+            let timer_text = self.ocr_engine.get_text(&timer_input)?.to_uppercase();
+            if self.detection_patterns.checkered_flag.is_match(&timer_text) {
+                return Ok(TrackState::CheckeredFlag);
+            }
+
             // Look for all other possible states
             let status_text = self.ocr_engine.get_text(&status_input)?.to_uppercase();
 
@@ -218,12 +224,6 @@ impl DetectionSource for VideoSource {
                 return Ok(TrackState::SafetyCarEnding);
             } else if self.detection_patterns.red_flag.is_match(&status_text) {
                 return Ok(TrackState::RedFlag);
-            } else if self
-                .detection_patterns
-                .checkered_flag
-                .is_match(&status_text)
-            {
-                return Ok(TrackState::CheckeredFlag);
             }
         }
 
