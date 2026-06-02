@@ -1,16 +1,52 @@
-use serde::ser::{Serialize, Serializer, SerializeStruct};
-use xcap::{XCapError};
+use ocrs::{ImageSource, OcrEngine};
+use std::sync::Arc;
+use xcap::image::EncodableLayout;
+use xcap::XCapError;
 
-/// VideoInput represents a source of video capture that the detection system can use to look for
-/// the current race status. Usually this means a system display device like a monitor.
-#[derive(Debug)]
-pub struct VideoInput {
+use crate::detection::source::DetectionSource;
+use crate::detection::state::TrackState;
+
+/// VideoSource represents a source of video capture that the detection system can use to look for
+/// the current race status. Usually this means a system display device like a monitor. A video
+/// source needs an OCR engine to perform text detection on the video image.
+pub struct VideoSource {
+    monitor: xcap::Monitor,
+    ocr_engine: Arc<OcrEngine>,
+}
+
+impl VideoSource {
+    pub fn new(option: VideoSourceOption, ocr_engine: Arc<OcrEngine>) -> anyhow::Result<Self> {
+        let monitor = option.get_monitor()?;
+        Ok(VideoSource {
+            monitor,
+            ocr_engine,
+        })
+    }
+}
+
+impl DetectionSource for VideoSource {
+    fn get_track_state(&self) -> anyhow::Result<TrackState> {
+        println!("Taking screenshot");
+        let image = self.monitor.capture_image()?;
+        println!("Running OCR");
+        let image_source = ImageSource::from_bytes(image.as_bytes(), image.dimensions())?;
+        let ocr_input = self.ocr_engine.prepare_input(image_source)?;
+
+        println!("{}", self.ocr_engine.get_text(&ocr_input)?);
+        Ok(TrackState::GreenFlag)
+    }
+}
+
+/// VideoSourceOption is a serializable struct that describes an available VideoSource that could
+/// be used to capture track state.
+#[derive(Debug, serde::Serialize)]
+pub struct VideoSourceOption {
     id: u32,
     name: String,
     is_primary: bool,
 }
 
-impl VideoInput {
+impl VideoSourceOption {
     /// Retrieve the list of all video input sources that can be used in detection currently.
     pub fn all() -> anyhow::Result<Vec<Self>> {
         let xcap_monitors = xcap::Monitor::all()?;
@@ -28,7 +64,7 @@ impl VideoInput {
 
         for xcap_monitor in xcap_monitors {
             if xcap_monitor.is_primary().unwrap_or(false) {
-                return Ok(Self::try_from(xcap_monitor)?)
+                return Ok(Self::try_from(xcap_monitor)?);
             }
         }
 
@@ -43,14 +79,17 @@ impl VideoInput {
             match maybe_monitor_id {
                 Ok(monitor_id) => {
                     if monitor_id == id {
-                        return Ok(Self::try_from(xcap_monitor)?)
+                        return Ok(Self::try_from(xcap_monitor)?);
                     }
-                },
+                }
                 Err(_) => (),
             }
         }
 
-        Err(anyhow::Error::msg("No primary monitor found"))
+        Err(anyhow::Error::msg(format!(
+            "No monitor found with id {}",
+            id
+        )))
     }
 
     pub fn get_monitor(&self) -> anyhow::Result<xcap::Monitor> {
@@ -61,9 +100,9 @@ impl VideoInput {
             match maybe_monitor_id {
                 Ok(monitor_id) => {
                     if monitor_id == self.id {
-                        return Ok(xcap_monitor)
+                        return Ok(xcap_monitor);
                     }
-                },
+                }
                 Err(_) => (),
             }
         }
@@ -71,26 +110,13 @@ impl VideoInput {
     }
 }
 
-impl Serialize for VideoInput {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("VideoInput", 3)?;
-        state.serialize_field("id", &self.id)?;
-        state.serialize_field("name", &self.name)?;
-        state.serialize_field("isPrimary", &self.is_primary)?;
-        state.end()
-    }
-}
-
-impl TryFrom<xcap::Monitor> for VideoInput {
+impl TryFrom<xcap::Monitor> for VideoSourceOption {
     type Error = XCapError;
 
-    fn try_from(value: xcap::Monitor) -> anyhow::Result<Self, Self::Error> {
+    fn try_from(value: xcap::Monitor) -> Result<Self, Self::Error> {
         // ID is required, we allow the other fields to fail and fill them with defaults.
         let id = value.id()?;
-        Ok(VideoInput {
+        Ok(VideoSourceOption {
             id,
             name: value.name().unwrap_or(String::from("Unknown")),
             is_primary: value.is_primary().unwrap_or(false),

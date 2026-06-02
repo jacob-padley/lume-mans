@@ -1,22 +1,25 @@
-use ocrs::ImageSource;
-use tauri::State;
-use tokio::time::interval;
-use xcap::image::EncodableLayout;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use tauri::State;
+use tokio::time::interval;
 
-use crate::detection::video::VideoInput;
+use crate::detection::source::DetectionSource;
+use crate::detection::video::{VideoSource, VideoSourceOption};
 use crate::AppState;
 
 #[tauri::command]
-pub fn list_inputs() -> Result<Vec<VideoInput>, String> {
-    VideoInput::all().map_err(|e| e.to_string())
+pub fn list_inputs() -> Result<Vec<VideoSourceOption>, String> {
+    VideoSourceOption::all().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let mut capture_device = state.capture_device.write().unwrap();
-    *capture_device = VideoInput::from_id(id).map_err(|e| e.to_string())?;
+    let mut capture_device = state.capture_source.write().unwrap();
+    *capture_device = VideoSource::new(
+        VideoSourceOption::from_id(id).map_err(|e| e.to_string())?,
+        state.ocr_engine.clone(),
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -34,16 +37,15 @@ pub async fn start_capture(state: State<'_, AppState>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
     if is_capturing.load(Ordering::SeqCst) {
-        return Err(String::from("Capture is already active"))
+        return Err(String::from("Capture is already active"));
     }
 
     is_capturing.store(true, Ordering::SeqCst);
 
     let settings = state.capture_settings.read().unwrap();
 
-    let ocr_engine = state.ocr_engine.clone();
-    let capture_monitor_lock = state.capture_device.clone();
-    let capture_monitor = capture_monitor_lock.read().unwrap().get_monitor().expect("Could not acquire display device");
+    let capture_source_lock = state.capture_source.clone();
+    let state_manager_lock = state.state_manager.clone();
     let interval_millis = settings.interval;
 
     tokio::spawn(async move {
@@ -55,14 +57,16 @@ pub async fn start_capture(state: State<'_, AppState>) -> Result<(), String> {
             }
             ticker.tick().await;
 
-            // TODO: fail gracefully if any unwraps fail
-            println!("Taking screenshot");
-            let image = capture_monitor.capture_image().expect("Image capture failed");
-            println!("Running OCR");
-            let image_source = ImageSource::from_bytes(image.as_bytes(), image.dimensions()).unwrap();
-            let ocr_input = ocr_engine.prepare_input(image_source).unwrap();
+            let capture_source = capture_source_lock.read().unwrap();
+            let maybe_detected_state = capture_source.get_track_state();
 
-            println!("{}", ocr_engine.get_text(&ocr_input).unwrap());
+            match maybe_detected_state {
+                Ok(state) => {
+                    let mut state_manager = state_manager_lock.write().unwrap();
+                    state_manager.set_state(state);
+                }
+                Err(_) => println!("Couldn't read track state"),
+            }
         }
     });
     Ok(())

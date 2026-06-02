@@ -4,7 +4,7 @@ import * as z from 'zod';
 const VideoInputSchema = z.object({
   id: z.number().nonnegative(),
   name: z.string(),
-  isPrimary: z.boolean(),
+  is_primary: z.boolean(),
 });
 export type VideoInput = z.infer<typeof VideoInputSchema>;
 

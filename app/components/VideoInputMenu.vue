@@ -35,7 +35,7 @@ watch(selectedInputEntry, (selected) => {
 const inputs = computed(() =>
   availableInputs.value.map((input) => ({
     id: input.id,
-    label: input.isPrimary ? `${input.name} (Primary Display)` : input.name,
+    label: input.is_primary ? `${input.name} (Primary Display)` : input.name,
     icon: 'i-lucide-monitor',
   })),
 );
