@@ -186,9 +186,9 @@ impl DetectionSource for VideoSource {
             {
                 Some(SessionTime::new(
                     // These unwraps are safe since the regex guarantees three valid integer capturing groups
-                    caps.get(0).unwrap().as_str().parse::<i32>().unwrap_or(0),
-                    caps.get(1).unwrap().as_str().parse::<i32>().unwrap(),
+                    caps.get(1).unwrap().as_str().parse::<i32>().unwrap_or(0),
                     caps.get(2).unwrap().as_str().parse::<i32>().unwrap(),
+                    caps.get(3).unwrap().as_str().parse::<i32>().unwrap(),
                 ))
             }
             Ok(finish_text) if self.detection_patterns.session_end.is_match(&finish_text) => {

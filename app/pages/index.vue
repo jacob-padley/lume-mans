@@ -3,6 +3,7 @@
     <div class="flex my-10 font-mono font-bold text-5xl uppercase tracking-widest">
       <span>Lume</span><UIcon class="mx-2" name="i-lucide-lightbulb"></UIcon><span>Mans</span>
     </div>
+    <SessionTimer class="h-8" />
     <TrackStatus class="w-3/4 h-24 mb-3" />
     <span class="font-mono h-[1em]">
       {{ captureEnabled ? `${fps.toFixed(1)} FPS (${lastFrameTime} ms)` : '' }}

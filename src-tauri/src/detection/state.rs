@@ -90,7 +90,11 @@ impl TrackStateManager {
                     // Neutral only causes a transition under certain circumstances. A Yellow Flag
                     // can end if it disappears from the screen, but a Safety Car requires a
                     // transition to a Green Flag or Safety Car Ending first.
-                    if self.state == TrackState::YellowFlag {
+                    if self.state == TrackState::YellowFlag
+                        || self.state == TrackState::FullCourseYellowEnding
+                        || self.state == TrackState::VirtualSafetyCarEnding
+                        || self.state == TrackState::SafetyCarEnding
+                    {
                         new_state = TrackState::GreenFlag;
                     }
                 }
@@ -101,6 +105,7 @@ impl TrackStateManager {
         if new_state != self.state {
             self.state = new_state;
             let _ = handle.emit("track-status", &self.state);
+            // TODO: emit lighting events
         }
     }
 }

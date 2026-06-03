@@ -71,6 +71,10 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
                     _ => continue,
                 }
             }
+            // Broadcast the race time to the frontend if available
+            if let Some(time) = maybe_timer {
+                let _ = app.emit("session-time", time);
+            }
             // Allow the state manager to decide if the reported state necessitates a state
             // transition.
             let mut state_manager = state_manager_lock.write().unwrap();
