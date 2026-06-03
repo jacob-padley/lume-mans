@@ -85,6 +85,28 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
 }
 
 #[tauri::command]
+pub async fn override_status(
+    status: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let target_state: TrackState;
+    if status == "GreenFlag" {
+        target_state = TrackState::GreenFlag;
+    } else if status == "SessionStart" {
+        target_state = TrackState::SessionStart;
+    } else {
+        return Err(String::from("Invalid state"));
+    }
+
+    let state_manager_lock = state.state_manager.clone();
+    let mut state_manager = state_manager_lock.write().unwrap();
+    state_manager.override_state(target_state, &app);
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn stop_capture(state: State<'_, AppState>) -> Result<(), String> {
     state.capture_active.store(false, Ordering::SeqCst);
 

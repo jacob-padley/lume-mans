@@ -52,6 +52,10 @@ impl TrackStateManager {
         }
     }
 
+    pub fn override_state(&mut self, state: TrackState, handle: &AppHandle) {
+        self.set_state(state, handle)
+    }
+
     /// handle_state accepts optional detected state and session time from a DetectionSource and
     /// decides whether to mutate its internal state or not. If it decides to perform a state
     /// transition, a track-status update is emitted via the AppHandle.
@@ -102,6 +106,10 @@ impl TrackStateManager {
         }
 
         // Decide if a status update is needed
+        self.set_state(new_state, handle)
+    }
+
+    fn set_state(&mut self, new_state: TrackState, handle: &AppHandle) {
         if new_state != self.state {
             self.state = new_state;
             let _ = handle.emit("track-status", &self.state);

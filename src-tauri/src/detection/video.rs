@@ -115,10 +115,10 @@ impl VideoSource {
                 full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
                 safety_car_ending: Regex::new(r"\bENDING\b|SAFETY\W+CAR\W+IN\W+THIS\W+LAP")
                     .unwrap(),
-                virtual_safety_car_ending: Regex::new(r"VSC\W+ENDING").unwrap(),
-                full_course_yellow_ending: Regex::new(r"FCY\W+ENDING").unwrap(),
+                virtual_safety_car_ending: Regex::new(r"VSC\W+WILL\W+END").unwrap(),
+                full_course_yellow_ending: Regex::new(r"FCY\W+WILL\W+END").unwrap(),
                 red_flag: Regex::new(r"RED\W+FLAG").unwrap(),
-                neutral: Regex::new(r"\bHYPERCAR\b|\bLMGT3\b|\bLMP2\b|\bRACE\b|BATTLE\W+FOR")
+                neutral: Regex::new(r"\bHYPERCAR\b|\bLMGT3\b|\bLMP2\b|\bRACE\b|BATTLE\W+FOR|VIRTUAL\W+ENERGY\W+TANK")
                     .unwrap(),
             },
         })

@@ -11,9 +11,20 @@
     <CaptureToggle
       v-model="captureEnabled"
       :disabled="videoInputId === -1"
-      class="mt-10 mb-3 w-40"
+      class="mt-7 mb-3 w-40"
     />
     <VideoInputMenu v-model="videoInputId" :disabled="captureEnabled" class="w-3/4" />
+    <span class="font-mono text-sm text-slate-400 uppercase mt-8 mb-3">Override Track Status</span>
+    <StatusOverrideButton
+      class="mb-2 font-mono bg-slate-500 hover:bg-slate-600 active:bg-slate-600 text-slate-100 uppercase"
+      status="SessionStart"
+      >Pre-Start</StatusOverrideButton
+    >
+    <StatusOverrideButton
+      class="bg-green-600 hover:bg-green-700 active:bg-green-700 font-mono text-slate-100 uppercase"
+      status="GreenFlag"
+      >Green Flag</StatusOverrideButton
+    >
   </div>
 </template>
 

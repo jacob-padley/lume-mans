@@ -65,6 +65,7 @@ pub fn run() {
             commands::list_inputs,
             commands::set_capture_device,
             commands::start_capture,
+            commands::override_status,
             commands::stop_capture
         ])
         .run(tauri::generate_context!())
