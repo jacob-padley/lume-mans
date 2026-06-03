@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::time::{interval, MissedTickBehavior};
 
 use crate::detection::source::DetectionSource;
-use crate::detection::state::TrackState;
+use crate::detection::state::{SessionTime, TrackState};
 use crate::detection::video::{VideoSource, VideoSourceOption};
 use crate::AppState;
 
@@ -57,17 +57,24 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
             let _ = app.emit("last-frame-time", frame_millis);
 
             // Capture and process the next frame
-            let capture_source = capture_source_lock.read().unwrap();
-            let maybe_detected_state: anyhow::Result<TrackState>;
+            let maybe_state: Option<TrackState>;
+            let maybe_timer: Option<SessionTime>;
+            // Enclose in a scope to close mutexes as early as possible
             {
-                let state_manager = state_manager_lock.read().unwrap();
-                let current_state = state_manager.get_state();
-                maybe_detected_state = capture_source.get_track_state(current_state);
+                let capture_source = capture_source_lock.read().unwrap();
+                // Get whatever state the video source is able to provide for this frame
+                match capture_source.get_track_state() {
+                    Some((state, timer)) => {
+                        maybe_state = state;
+                        maybe_timer = timer;
+                    }
+                    _ => continue,
+                }
             }
-            if let Ok(state) = maybe_detected_state {
-                let mut state_manager = state_manager_lock.write().unwrap();
-                state_manager.set_state(state, &app);
-            }
+            // Allow the state manager to decide if the reported state necessitates a state
+            // transition.
+            let mut state_manager = state_manager_lock.write().unwrap();
+            state_manager.handle_state(maybe_state, maybe_timer, &app);
         }
     });
     Ok(())

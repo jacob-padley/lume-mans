@@ -5,7 +5,7 @@ use xcap::image::{DynamicImage, EncodableLayout};
 use xcap::XCapError;
 
 use crate::detection::source::DetectionSource;
-use crate::detection::state::TrackState;
+use crate::detection::state::{SessionTime, TrackState};
 
 struct AbsoluteBoundingBox {
     x: u32,
@@ -58,7 +58,7 @@ impl AbsoluteBoundingBox {
 /// the current race status. Usually this means a system display device like a monitor. A video
 /// source needs an OCR engine to perform text detection on the video image.
 pub struct VideoSource {
-    monitor: u32,
+    source: VideoSourceOption,
     ocr_engine: Arc<OcrEngine>,
     bounding_boxes: VideoDetectionBounds,
     detection_patterns: VideoDetectionPatterns,
@@ -73,15 +73,18 @@ struct VideoDetectionBounds {
 /// Regexes used in detection of text in the video. Sadly these can't be declared as constants
 /// because Rust moment.
 struct VideoDetectionPatterns {
-    session_start: Regex,
+    timer: Regex,
+    session_end: Regex,
     green_flag: Regex,
     yellow_flag: Regex,
     safety_car: Regex,
     virtual_safety_car: Regex,
-    safety_car_ending: Regex,
-    checkered_flag: Regex,
     full_course_yellow: Regex,
+    safety_car_ending: Regex,
+    virtual_safety_car_ending: Regex,
+    full_course_yellow_ending: Regex,
     red_flag: Regex,
+    neutral: Regex,
 }
 
 impl VideoSource {
@@ -90,8 +93,8 @@ impl VideoSource {
         let width = monitor.width()?;
         let height = monitor.height()?;
 
-        Ok(VideoSource {
-            monitor: monitor.id()?,
+        Ok(Self {
+            source: option,
             ocr_engine,
             bounding_boxes: VideoDetectionBounds {
                 status_box: AbsoluteBoundingBox::from_relative(STATUS_BOUNDING_BOX, width, height),
@@ -103,33 +106,39 @@ impl VideoSource {
                 ),
             },
             detection_patterns: VideoDetectionPatterns {
-                session_start: Regex::new(r"\d+:\d+:(\d+)").unwrap(),
+                timer: Regex::new(r"(\d*):{0,1}(\d+):(\d+)").unwrap(),
+                session_end: Regex::new(r"\bFINISH\b").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
                 safety_car: Regex::new(r"\bSC\b|SAFETY\W+CAR").unwrap(),
                 virtual_safety_car: Regex::new(r"\bVSC\b|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
+                full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
                 safety_car_ending: Regex::new(r"\bENDING\b|SAFETY\W+CAR\W+IN\W+THIS\W+LAP")
                     .unwrap(),
-                checkered_flag: Regex::new(r"FINISH").unwrap(),
-                full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
+                virtual_safety_car_ending: Regex::new(r"VSC\W+ENDING").unwrap(),
+                full_course_yellow_ending: Regex::new(r"FCY\W+ENDING").unwrap(),
                 red_flag: Regex::new(r"RED\W+FLAG").unwrap(),
+                neutral: Regex::new(r"\bHYPERCAR\b|\bLMGT3\b|\bLMP2\b|\bRACE\b|BATTLE\W+FOR")
+                    .unwrap(),
             },
         })
     }
 }
 
 impl DetectionSource for VideoSource {
-    fn get_track_state(&self, current_state: &TrackState) -> anyhow::Result<TrackState> {
+    /// get_track_state reports the current TrackState and SessionTime that this source can
+    /// determine. It is not always the case that we can detect this information, so it is all
+    /// optional.
+    fn get_track_state(&self) -> Option<(Option<TrackState>, Option<SessionTime>)> {
+        // Retrieve the bounding boxes of the important parts of the screen
         let status_box = &self.bounding_boxes.status_box;
         let timer_box = &self.bounding_boxes.timer_box;
         let notification_box = &self.bounding_boxes.notification_box;
 
-        let image = DynamicImage::ImageRgba8(
-            VideoSourceOption::from_id(self.monitor)?
-                .get_monitor()?
-                .capture_image()?,
-        );
+        // Take a screenshot of the race
+        let image = DynamicImage::ImageRgba8(self.source.get_monitor().ok()?.capture_image().ok()?);
 
+        // Crop out the relevant parts of the image
         let status_cropped = image
             .crop_imm(
                 status_box.x,
@@ -150,90 +159,118 @@ impl DetectionSource for VideoSource {
             )
             .into_rgb8();
 
+        // OCR pre-prep
         let status_source = ImageSource::from_bytes(
             status_cropped.as_bytes(),
             (status_box.width, status_box.height),
-        )?;
+        )
+        .ok()?;
         let timer_source = ImageSource::from_bytes(
             timer_cropped.as_bytes(),
             (timer_box.width, timer_box.height),
-        )?;
+        )
+        .ok()?;
         let notification_source = ImageSource::from_bytes(
             notification_cropped.as_bytes(),
             (notification_box.width, notification_box.height),
-        )?;
+        )
+        .ok()?;
+        let status_input = self.ocr_engine.prepare_input(status_source).ok()?;
+        let timer_input = self.ocr_engine.prepare_input(timer_source).ok()?;
+        let notification_input = self.ocr_engine.prepare_input(notification_source).ok()?;
 
-        let status_input = self.ocr_engine.prepare_input(status_source)?;
-        let timer_input = self.ocr_engine.prepare_input(timer_source)?;
-        let notification_input = self.ocr_engine.prepare_input(notification_source)?;
-
-        if *current_state == TrackState::SessionStart {
-            // See if the timer has begun to tick down
-            let timer_text = self.ocr_engine.get_text(&timer_input)?;
-            let caps = self.detection_patterns.session_start.captures(&timer_text);
-            if let Some(groups) = caps {
-                let last_digits = groups.get(1);
-                if let Some(seconds) = last_digits {
-                    let timer_seconds = seconds.as_str().parse::<i32>().unwrap_or(0);
-                    if timer_seconds > 0 {
-                        // Race has started
-                        return Ok(TrackState::GreenFlag);
-                    }
-                }
-            }
-        } else if *current_state == TrackState::SafetyCar {
-            // See if safety car is in this lap
-            let status_text = self.ocr_engine.get_text(&status_input)?.to_uppercase();
-            let notification_text = self.ocr_engine.get_text(&notification_input)?;
-            if self
-                .detection_patterns
-                .safety_car_ending
-                .is_match(&notification_text)
-                || self
-                    .detection_patterns
-                    .safety_car_ending
-                    .is_match(&status_text)
+        // Read the session timer if it is available
+        let timer_option = match self.ocr_engine.get_text(&timer_input) {
+            Ok(ref timer_text)
+                if let Some(caps) = self.detection_patterns.timer.captures(timer_text) =>
             {
-                return Ok(TrackState::SafetyCarEnding);
+                Some(SessionTime::new(
+                    // These unwraps are safe since the regex guarantees three valid integer capturing groups
+                    caps.get(0).unwrap().as_str().parse::<i32>().unwrap_or(0),
+                    caps.get(1).unwrap().as_str().parse::<i32>().unwrap(),
+                    caps.get(2).unwrap().as_str().parse::<i32>().unwrap(),
+                ))
             }
-        } else {
-            // Check if the race is ending
-            let timer_text = self.ocr_engine.get_text(&timer_input)?.to_uppercase();
-            if self.detection_patterns.checkered_flag.is_match(&timer_text) {
-                return Ok(TrackState::CheckeredFlag);
+            Ok(finish_text) if self.detection_patterns.session_end.is_match(&finish_text) => {
+                Some(SessionTime::new(0, 0, 0))
             }
+            _ => None,
+        };
 
-            // Look for all other possible states
-            let status_text = self.ocr_engine.get_text(&status_input)?.to_uppercase();
-
-            if self.detection_patterns.green_flag.is_match(&status_text) {
-                return Ok(TrackState::GreenFlag);
-            } else if self.detection_patterns.yellow_flag.is_match(&status_text) {
-                return Ok(TrackState::YellowFlag);
-            } else if self
-                .detection_patterns
-                .full_course_yellow
-                .is_match(&status_text)
-            {
-                return Ok(TrackState::FullCourseYellow);
-            } else if *current_state != TrackState::SafetyCarEnding {
-                if self
-                    .detection_patterns
-                    .virtual_safety_car
-                    .is_match(&status_text)
-                {
-                    return Ok(TrackState::VirtualSafetyCar);
-                } else if self.detection_patterns.safety_car.is_match(&status_text) {
-                    return Ok(TrackState::SafetyCar);
-                }
-            } else if self.detection_patterns.red_flag.is_match(&status_text) {
-                return Ok(TrackState::RedFlag);
+        // If the session timer is zero, the race has ended
+        if let Some(timer) = &timer_option {
+            if timer.is_zero() {
+                return Some((Some(TrackState::CheckeredFlag), timer_option));
             }
         }
 
-        Err(anyhow::Error::msg(
-            "Could not determine track state from video stream",
-        ))
+        // Extract the rest of the relevant text
+        let status_text = self.ocr_engine.get_text(&status_input).ok()?.to_uppercase();
+        let notification_text = self
+            .ocr_engine
+            .get_text(&notification_input)
+            .ok()?
+            .to_uppercase();
+
+        // Detection priority order from this point on:
+        //  Green Flag
+        //  Safety Car Ending
+        //  VSC Ending
+        //  FCY Ending
+        //  Safety Car
+        //  VSC
+        //  FCY
+        //  Yellow Flag
+        //  Red Flag
+        //  Neutral
+        let mut state_option: Option<TrackState> = None;
+        if self.detection_patterns.green_flag.is_match(&status_text) {
+            state_option = Some(TrackState::GreenFlag);
+        } else if self
+            .detection_patterns
+            .safety_car_ending
+            .is_match(&status_text)
+            || self
+                .detection_patterns
+                .safety_car_ending
+                .is_match(&notification_text)
+        {
+            state_option = Some(TrackState::SafetyCarEnding);
+        } else if self
+            .detection_patterns
+            .virtual_safety_car_ending
+            .is_match(&notification_text)
+        {
+            state_option = Some(TrackState::VirtualSafetyCarEnding);
+        } else if self
+            .detection_patterns
+            .full_course_yellow_ending
+            .is_match(&notification_text)
+        {
+            state_option = Some(TrackState::FullCourseYellowEnding);
+        } else if self.detection_patterns.safety_car.is_match(&status_text) {
+            state_option = Some(TrackState::SafetyCar);
+        } else if self
+            .detection_patterns
+            .virtual_safety_car
+            .is_match(&status_text)
+        {
+            state_option = Some(TrackState::VirtualSafetyCar);
+        } else if self
+            .detection_patterns
+            .full_course_yellow
+            .is_match(&status_text)
+        {
+            state_option = Some(TrackState::FullCourseYellow);
+        } else if self.detection_patterns.yellow_flag.is_match(&status_text) {
+            state_option = Some(TrackState::YellowFlag);
+        } else if self.detection_patterns.red_flag.is_match(&status_text) {
+            state_option = Some(TrackState::RedFlag);
+        } else if self.detection_patterns.neutral.is_match(&status_text) {
+            state_option = Some(TrackState::Neutral);
+        }
+
+        Some((state_option, timer_option))
     }
 }
 
@@ -310,7 +347,7 @@ impl TryFrom<xcap::Monitor> for VideoSourceOption {
     fn try_from(value: xcap::Monitor) -> Result<Self, Self::Error> {
         // ID is required, we allow the other fields to fail and fill them with defaults.
         let id = value.id()?;
-        Ok(VideoSourceOption {
+        Ok(Self {
             id,
             name: value
                 .friendly_name()
