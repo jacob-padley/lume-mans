@@ -7,9 +7,11 @@ const TrackStatusSchema = z.union([
   z.literal('GreenFlag'),
   z.literal('YellowFlag'),
   z.literal('FullCourseYellow'),
+  z.literal('FullCourseYellowEnding'),
   z.literal('SafetyCar'),
-  z.literal('VirtualSafetyCar'),
   z.literal('SafetyCarEnding'),
+  z.literal('VirtualSafetyCar'),
+  z.literal('VirtualSafetyCarEnding'),
   z.literal('RedFlag'),
   z.literal('CheckeredFlag'),
 ]);

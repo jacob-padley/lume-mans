@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "lume-mans",
+  "productName": "Lume Mans",
   "version": "0.3.0",
   "identifier": "com.jacob-padley.lume-mans",
   "build": {

@@ -1,7 +1,7 @@
 [package]
 name = "lume-mans"
 version = "0.3.0"
-description = "A Tauri App"
+description = "Live track status monitoring and lighting cues for the 24 Hours of Le Mans"
 authors = ["you"]
 edition = "2021"
 
@@ -28,13 +28,3 @@ ocrs = "0.12.2"
 rten = "0.24.0"
 tokio = { version = "1.52.3", features = ["time"] }
 regex = "1.12.3"
-
-# Profile overrides for ocrs performance
-[profile.dev.package.ocrs]
-opt-level = 3
-
-[profile.dev.package.rten]
-opt-level = 3
-
-[profile.dev.package.rten-tensor]
-opt-level = 3

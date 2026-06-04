@@ -19,9 +19,11 @@ const prettyStatusMap = {
   GreenFlag: 'Green Flag',
   YellowFlag: 'Yellow Flag',
   FullCourseYellow: 'FCY',
+  FullCourseYellowEnding: 'FCY Ending',
   SafetyCar: 'Safety Car',
-  VirtualSafetyCar: 'VSC',
   SafetyCarEnding: 'Safety Car Ending',
+  VirtualSafetyCar: 'VSC',
+  VirtualSafetyCarEnding: 'VSC Ending',
   RedFlag: 'Red Flag',
   CheckeredFlag: ' ', // No text since we will display a checkered background
 };
@@ -40,9 +42,11 @@ function statusClass(status: TrackStatus) {
   } else if (
     status === 'YellowFlag' ||
     status === 'FullCourseYellow' ||
+    status === 'FullCourseYellowEnding' ||
     status === 'SafetyCar' ||
+    status === 'SafetyCarEnding' ||
     status === 'VirtualSafetyCar' ||
-    status === 'SafetyCarEnding'
+    status === 'VirtualSafetyCarEnding'
   ) {
     return 'bg-yellow-600';
   } else if (status === 'RedFlag') {
