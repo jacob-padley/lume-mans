@@ -184,12 +184,21 @@ impl DetectionSource for VideoSource {
             Ok(ref timer_text)
                 if let Some(caps) = self.detection_patterns.timer.captures(timer_text) =>
             {
-                Some(SessionTime::new(
-                    // These unwraps are safe since the regex guarantees three valid integer capturing groups
-                    caps.get(1).unwrap().as_str().parse::<i32>().unwrap_or(0),
-                    caps.get(2).unwrap().as_str().parse::<i32>().unwrap(),
-                    caps.get(3).unwrap().as_str().parse::<i32>().unwrap(),
-                ))
+                // There is not always an hour capturing group as it is optional
+                match caps.get(1) {
+                    Some(hours) => Some(SessionTime::new(
+                        // These unwraps are safe since the regex guarantees valid integer capturing groups
+                        hours.as_str().parse::<i32>().unwrap_or(0),
+                        caps.get(2).unwrap().as_str().parse::<i32>().unwrap(),
+                        caps.get(3).unwrap().as_str().parse::<i32>().unwrap(),
+                    )),
+                    None => Some(SessionTime::new(
+                        // In this case, there is no hour capturing group
+                        0,
+                        caps.get(2).unwrap().as_str().parse::<i32>().unwrap(),
+                        caps.get(3).unwrap().as_str().parse::<i32>().unwrap(),
+                    )),
+                }
             }
             Ok(finish_text) if self.detection_patterns.session_end.is_match(&finish_text) => {
                 Some(SessionTime::new(0, 0, 0))
