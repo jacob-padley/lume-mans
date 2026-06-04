@@ -106,7 +106,7 @@ impl VideoSource {
                 ),
             },
             detection_patterns: VideoDetectionPatterns {
-                timer: Regex::new(r"(\d*):{0,1}(\d+):(\d+)").unwrap(),
+                timer: Regex::new(r"(?:(\d*):)?(\d+):(\d+)").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
