@@ -4,16 +4,17 @@ mod detection;
 use ocrs::{OcrEngine, OcrEngineParams};
 use rten::Model;
 use std::sync::{atomic::AtomicBool, Arc, RwLock};
-use tauri::{path::BaseDirectory, Manager};
+use tauri::{path::BaseDirectory, Emitter, Manager};
 
-use crate::detection::state::TrackStateManager;
+use crate::detection::state::TrackState;
+use crate::detection::state_machine::{TrackStateMachine, VideoStateMachine};
 use crate::detection::video::{VideoSource, VideoSourceOption};
 
-struct AppState {
+struct AppState<'a> {
     ocr_engine: Arc<OcrEngine>,
     capture_active: Arc<AtomicBool>,
     capture_source: Arc<RwLock<VideoSource>>,
-    state_manager: Arc<RwLock<TrackStateManager>>,
+    state_machine: Arc<RwLock<dyn TrackStateMachine<'a> + Send + Sync>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -51,11 +52,17 @@ pub fn run() {
             )
             .expect("Failed to initialize primary video capture source");
 
+            let mut state_machine = VideoStateMachine::new();
+            let handle = app.handle().clone();
+            state_machine.subscribe(Box::new(move |_: TrackState, new_state: TrackState| {
+                let _ = handle.emit("track-status", new_state);
+            }));
+
             app.manage(AppState {
                 ocr_engine: ocr_engine.clone(),
                 capture_active: Arc::new(AtomicBool::new(false)),
                 capture_source: Arc::new(RwLock::new(default_capture_source)),
-                state_manager: Arc::new(RwLock::new(TrackStateManager::new())),
+                state_machine: Arc::new(RwLock::new(state_machine)),
             });
 
             Ok(())

@@ -14,7 +14,7 @@ pub fn list_inputs() -> Result<Vec<VideoSourceOption>, String> {
 }
 
 #[tauri::command]
-pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn set_capture_device(id: u32, state: State<'_, AppState<'_>>) -> Result<(), String> {
     let mut capture_device = state.capture_source.write().unwrap();
     *capture_device = VideoSource::new(
         VideoSourceOption::from_id(id).map_err(|e| e.to_string())?,
@@ -26,7 +26,7 @@ pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(
 }
 
 #[tauri::command]
-pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn start_capture(app: AppHandle, state: State<'_, AppState<'_>>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
     if is_capturing.load(Ordering::SeqCst) {
@@ -36,7 +36,7 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
     is_capturing.store(true, Ordering::SeqCst);
 
     let capture_source_lock = state.capture_source.clone();
-    let state_manager_lock = state.state_manager.clone();
+    let state_machine_lock = state.state_machine.clone();
 
     let mut last_tick = Instant::now();
 
@@ -77,19 +77,15 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
             }
             // Allow the state manager to decide if the reported state necessitates a state
             // transition.
-            let mut state_manager = state_manager_lock.write().unwrap();
-            state_manager.handle_state(maybe_state, maybe_timer, &app);
+            let mut state_machine = state_machine_lock.write().unwrap();
+            state_machine.handle_state(maybe_state, maybe_timer);
         }
     });
     Ok(())
 }
 
 #[tauri::command]
-pub async fn override_status(
-    status: String,
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn override_status(status: String, state: State<'_, AppState<'_>>) -> Result<(), String> {
     let target_state: TrackState;
     if status == "GreenFlag" {
         target_state = TrackState::GreenFlag;
@@ -99,15 +95,15 @@ pub async fn override_status(
         return Err(String::from("Invalid state"));
     }
 
-    let state_manager_lock = state.state_manager.clone();
-    let mut state_manager = state_manager_lock.write().unwrap();
-    state_manager.override_state(target_state, &app);
+    let state_machine_lock = state.state_machine.clone();
+    let mut state_machine = state_machine_lock.write().unwrap();
+    state_machine.override_state(target_state);
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn stop_capture(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn stop_capture(state: State<'_, AppState<'_>>) -> Result<(), String> {
     state.capture_active.store(false, Ordering::SeqCst);
 
     Ok(())
