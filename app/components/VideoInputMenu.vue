@@ -1,9 +1,10 @@
 <template>
   <USelectMenu
+    v-if="props.inputs.length > 0"
     v-model="selectedInputEntry"
     placeholder="Select Video Source"
     icon="i-lucide-monitor"
-    :items="inputs"
+    :items="displayedInputs"
     :disabled="disabled"
     :search-input="false"
     class="font-mono justify-center"
@@ -15,15 +16,27 @@
 </template>
 
 <script setup lang="ts">
-import { useVideoInputs } from '~/composables/useVideoInputs';
-
-const selectedInputEntry = ref<{ id: number; label: string; icon: string }>();
-const { availableInputs } = useVideoInputs();
-
 const model = defineModel<number>();
-defineProps<{
+const props = defineProps<{
+  inputs: VideoInputList;
   disabled: boolean;
 }>();
+
+type InputOption = {
+  id: number;
+  label: string;
+  icon: string;
+};
+
+const selectedInputEntry = ref<InputOption>();
+
+const displayedInputs = computed(() =>
+  props.inputs.map((input) => ({
+    id: input.id,
+    label: input.is_primary ? `${input.name} (Primary Display)` : input.name,
+    icon: 'i-lucide-monitor',
+  })),
+);
 
 watch(selectedInputEntry, (selected) => {
   if (selected) {
@@ -32,12 +45,4 @@ watch(selectedInputEntry, (selected) => {
     model.value = -1;
   }
 });
-
-const inputs = computed(() =>
-  availableInputs.value.map((input) => ({
-    id: input.id,
-    label: input.is_primary ? `${input.name} (Primary Display)` : input.name,
-    icon: 'i-lucide-monitor',
-  })),
-);
 </script>

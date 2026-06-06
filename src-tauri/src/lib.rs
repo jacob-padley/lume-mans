@@ -6,15 +6,14 @@ use rten::Model;
 use std::sync::{atomic::AtomicBool, Arc, RwLock};
 use tauri::{path::BaseDirectory, Emitter, Manager};
 
-use crate::detection::state::TrackState;
 use crate::detection::state_machine::{TrackStateMachine, VideoStateMachine};
 use crate::detection::video::{VideoSource, VideoSourceOption};
 
-struct AppState<'a> {
+struct AppState {
     ocr_engine: Arc<OcrEngine>,
     capture_active: Arc<AtomicBool>,
     capture_source: Arc<RwLock<VideoSource>>,
-    state_machine: Arc<RwLock<dyn TrackStateMachine<'a> + Send + Sync>>,
+    state_machine: Arc<RwLock<dyn TrackStateMachine + Send + Sync>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,17 +45,20 @@ pub fn run() {
                 .expect("Failed to initialise OCR engine"),
             );
 
-            let default_capture_source = VideoSource::new(
-                VideoSourceOption::primary().expect("Failed to find primary video capture device"),
-                ocr_engine.clone(),
-            )
-            .expect("Failed to initialize primary video capture source");
+            let default_capture_source =
+                VideoSource::new(VideoSourceOption::primary(), ocr_engine.clone())
+                    .expect("Failed to initialize primary video capture source");
 
-            let mut state_machine = VideoStateMachine::new();
+            let state_machine = VideoStateMachine::new();
             let handle = app.handle().clone();
-            state_machine.subscribe(Box::new(move |_: TrackState, new_state: TrackState| {
-                let _ = handle.emit("track-status", new_state);
-            }));
+            let mut state_receiver = state_machine.subscribe();
+
+            // Start a tokio task to handle changes in track state
+            tauri::async_runtime::spawn(async move {
+                while let Ok(new_state) = state_receiver.recv().await {
+                    let _ = handle.emit("track-status", new_state);
+                }
+            });
 
             app.manage(AppState {
                 ocr_engine: ocr_engine.clone(),

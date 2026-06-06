@@ -5,6 +5,7 @@ const VideoInputSchema = z.object({
   id: z.number().nonnegative(),
   name: z.string(),
   is_primary: z.boolean(),
+  source_type: z.union([z.literal('Window'), z.literal('Monitor')]),
 });
 export type VideoInput = z.infer<typeof VideoInputSchema>;
 

@@ -1,37 +1,37 @@
+use tokio::sync::broadcast;
+
 use crate::detection::state::{SessionTime, TrackState};
-pub trait TrackStateMachine<'a> {
+pub trait TrackStateMachine {
     fn handle_state(&mut self, maybe_state: Option<TrackState>, maybe_time: Option<SessionTime>);
     fn override_state(&mut self, state: TrackState);
-    fn subscribe(&mut self, subscriber: Box<dyn Fn(TrackState, TrackState) + 'a + Send + Sync>);
+    fn subscribe(&self) -> broadcast::Receiver<TrackState>;
 }
 
-pub struct VideoStateMachine<'a> {
+pub struct VideoStateMachine {
     state: TrackState,
-    subscribers: Vec<Box<dyn Fn(TrackState, TrackState) + 'a + Send + Sync>>,
+    sender: broadcast::Sender<TrackState>,
 }
 
-impl<'a> VideoStateMachine<'a> {
+impl VideoStateMachine {
     pub fn new() -> Self {
         Self {
             state: TrackState::SessionStart,
-            subscribers: Vec::new(),
+            sender: broadcast::Sender::new(16),
         }
     }
 
     fn set_state(&mut self, new_state: TrackState) {
         if new_state != self.state {
             // Call observers
-            self.subscribers
-                .iter()
-                .for_each(|subscriber| subscriber(self.state, new_state));
             self.state = new_state;
+            let _ = self.sender.send(new_state);
         }
     }
 }
 
-impl<'a> TrackStateMachine<'a> for VideoStateMachine<'a> {
-    fn subscribe(&mut self, subscriber: Box<dyn Fn(TrackState, TrackState) + 'a + Send + Sync>) {
-        self.subscribers.push(subscriber)
+impl TrackStateMachine for VideoStateMachine {
+    fn subscribe(&self) -> broadcast::Receiver<TrackState> {
+        self.sender.subscribe()
     }
 
     fn override_state(&mut self, state: TrackState) {

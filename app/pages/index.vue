@@ -10,10 +10,15 @@
     </span>
     <CaptureToggle
       v-model="captureEnabled"
-      :disabled="videoInputId === -1"
+      :disabled="videoInputId === -1 && availableInputs.length > 0"
       class="mt-7 mb-3 w-40"
     />
-    <VideoInputMenu v-model="videoInputId" :disabled="captureEnabled" class="w-3/4" />
+    <VideoInputMenu
+      v-model="videoInputId"
+      :inputs="availableInputs"
+      :disabled="captureEnabled"
+      class="w-3/4"
+    />
     <span class="font-mono text-sm text-slate-400 uppercase mt-8 mb-3">Override Track Status</span>
     <StatusOverrideButton
       class="mb-2 font-mono bg-slate-500 hover:bg-slate-600 active:bg-slate-600 text-slate-100 uppercase"
@@ -31,11 +36,13 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core';
 import { useMetrics } from '~/composables/useMetrics';
+import { useVideoInputs } from '~/composables/useVideoInputs';
 
 const captureEnabled = ref(false);
 const videoInputId = ref(-1);
 
 const { lastFrameTime } = useMetrics();
+const { availableInputs } = useVideoInputs();
 
 const fps = computed(() => {
   if (lastFrameTime.value <= 0) {

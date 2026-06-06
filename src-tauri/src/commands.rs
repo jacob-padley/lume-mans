@@ -5,19 +5,19 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::detection::source::DetectionSource;
 use crate::detection::state::{SessionTime, TrackState};
-use crate::detection::video::{VideoSource, VideoSourceOption};
+use crate::detection::video::{VideoSource, VideoSourceOption, VideoSourceType};
 use crate::AppState;
 
 #[tauri::command]
 pub fn list_inputs() -> Result<Vec<VideoSourceOption>, String> {
-    VideoSourceOption::all().map_err(|e| e.to_string())
+    Ok(VideoSourceOption::all())
 }
 
 #[tauri::command]
-pub async fn set_capture_device(id: u32, state: State<'_, AppState<'_>>) -> Result<(), String> {
+pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(), String> {
     let mut capture_device = state.capture_source.write().unwrap();
     *capture_device = VideoSource::new(
-        VideoSourceOption::from_id(id).map_err(|e| e.to_string())?,
+        VideoSourceOption::get(id, VideoSourceType::Monitor).map_err(|e| e.to_string())?,
         state.ocr_engine.clone(),
     )
     .map_err(|e| e.to_string())?;
@@ -26,7 +26,7 @@ pub async fn set_capture_device(id: u32, state: State<'_, AppState<'_>>) -> Resu
 }
 
 #[tauri::command]
-pub async fn start_capture(app: AppHandle, state: State<'_, AppState<'_>>) -> Result<(), String> {
+pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
     if is_capturing.load(Ordering::SeqCst) {
@@ -41,11 +41,15 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState<'_>>) -> Re
     let mut last_tick = Instant::now();
 
     tokio::spawn(async move {
-        let mut ticker = interval(Duration::from_millis(200));
+        {
+            let capture_source = capture_source_lock.write().unwrap();
+            let _ = capture_source.start_capture();
+        }
+        let mut ticker = interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
             if !is_capturing.load(Ordering::SeqCst) {
-                return;
+                break;
             }
             ticker.tick().await;
 
@@ -80,12 +84,14 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState<'_>>) -> Re
             let mut state_machine = state_machine_lock.write().unwrap();
             state_machine.handle_state(maybe_state, maybe_timer);
         }
+        let capture_source = capture_source_lock.write().unwrap();
+        capture_source.stop_capture();
     });
     Ok(())
 }
 
 #[tauri::command]
-pub async fn override_status(status: String, state: State<'_, AppState<'_>>) -> Result<(), String> {
+pub async fn override_status(status: String, state: State<'_, AppState>) -> Result<(), String> {
     let target_state: TrackState;
     if status == "GreenFlag" {
         target_state = TrackState::GreenFlag;
@@ -103,7 +109,7 @@ pub async fn override_status(status: String, state: State<'_, AppState<'_>>) -> 
 }
 
 #[tauri::command]
-pub async fn stop_capture(state: State<'_, AppState<'_>>) -> Result<(), String> {
+pub async fn stop_capture(state: State<'_, AppState>) -> Result<(), String> {
     state.capture_active.store(false, Ordering::SeqCst);
 
     Ok(())
