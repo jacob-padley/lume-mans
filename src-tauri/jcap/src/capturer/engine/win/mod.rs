@@ -9,7 +9,10 @@ use cpal::{
     StreamInstant,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{cmp, time::Duration};
+use std::{
+    cmp,
+    time::{Duration, Instant},
+};
 use std::{
     os::windows,
     ptr::null_mut,
@@ -31,8 +34,6 @@ use windows_capture::{
 struct Capturer {
     pub tx: mpsc::Sender<Frame>,
     pub crop: Option<Area>,
-    pub start_time: (i64, SystemTime),
-    pub perf_freq: i64,
 }
 
 #[derive(Clone)]
@@ -47,6 +48,15 @@ pub struct WCStream {
     audio_stream: Option<AudioStreamHandle>,
 }
 
+unsafe impl Send for Settings {}
+unsafe impl Sync for Settings {}
+
+unsafe impl Send for WCStream {}
+unsafe impl Sync for WCStream {}
+
+unsafe impl Send for Capturer {}
+unsafe impl Sync for Capturer {}
+
 impl GraphicsCaptureApiHandler for Capturer {
     type Flags = FlagStruct;
     type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -55,19 +65,6 @@ impl GraphicsCaptureApiHandler for Capturer {
         Ok(Self {
             tx: context.flags.tx,
             crop: context.flags.crop,
-            start_time: (
-                unsafe {
-                    let mut time = 0;
-                    QueryPerformanceCounter(&mut time);
-                    time
-                },
-                SystemTime::now(),
-            ),
-            perf_freq: unsafe {
-                let mut freq = 0;
-                QueryPerformanceFrequency(&mut freq);
-                freq
-            },
         })
     }
 
@@ -76,14 +73,7 @@ impl GraphicsCaptureApiHandler for Capturer {
         frame: &mut WCFrame,
         _: InternalCaptureControl,
     ) -> Result<(), Self::Error> {
-        let elapsed = frame.timespan().Duration - self.start_time.0;
-        let display_time = self
-            .start_time
-            .1
-            .checked_add(Duration::from_secs_f64(
-                elapsed as f64 / self.perf_freq as f64,
-            ))
-            .unwrap();
+        let display_time = SystemTime::now();
 
         match &self.crop {
             Some(cropped_area) => {
@@ -94,20 +84,13 @@ impl GraphicsCaptureApiHandler for Capturer {
                 let end_y = (cropped_area.origin.y + cropped_area.size.height) as u32;
 
                 // crop the frame
-                let mut cropped_buffer = frame
+                let cropped_buffer = frame
                     .buffer_crop(start_x, start_y, end_x, end_y)
                     .expect("Failed to crop buffer");
 
                 // get raw frame buffer
-                let raw_frame_buffer = match cropped_buffer.as_nopadding_buffer() {
-                    Ok(buffer) => buffer,
-                    Err(_) => return Err(("Failed to get raw buffer").into()),
-                };
-
-                let current_time = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Failed to get current time")
-                    .as_nanos() as u64;
+                let mut padding_workspace = Vec::new();
+                let raw_frame_buffer = cropped_buffer.as_nopadding_buffer(&mut padding_workspace);
 
                 let bgr_frame = BGRAFrame {
                     display_time,
@@ -123,10 +106,6 @@ impl GraphicsCaptureApiHandler for Capturer {
                 let mut frame_buffer = frame.buffer().unwrap();
                 let raw_frame_buffer = frame_buffer.as_raw_buffer();
                 let frame_data = raw_frame_buffer.to_vec();
-                let current_time = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Failed to get current time")
-                    .as_nanos() as u64;
                 let bgr_frame = BGRAFrame {
                     display_time,
                     width: frame.width() as i32,

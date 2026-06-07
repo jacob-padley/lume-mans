@@ -81,6 +81,9 @@ pub struct Capturer {
     rx: mpsc::Receiver<ChannelItem>,
 }
 
+unsafe impl Send for Capturer {}
+unsafe impl Sync for Capturer {}
+
 #[derive(Debug)]
 pub enum CapturerBuildError {
     NotSupported,
