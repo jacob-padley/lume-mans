@@ -116,7 +116,7 @@ impl VideoSource {
             capture_active: Arc::new(AtomicBool::new(false)),
             latest_frame: Arc::new(Mutex::new(None)),
             detection_patterns: VideoDetectionPatterns {
-                timer: Regex::new(r"(?:(\d{0,2}):)?(\d{0,2}):(\d{0,2})").unwrap(),
+                timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
