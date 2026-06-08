@@ -511,7 +511,7 @@ impl VideoSourceOption {
         }
 
         Err(anyhow::anyhow!(
-            "No monitor found with id {} and type {:?}",
+            "No video source found with id {} and type {:?}",
             id,
             source_type
         ))

@@ -47,10 +47,10 @@ const { availableInputs } = useVideoInputs();
 const toast = useToast();
 const { copy } = useClipboard();
 
-useErrors((error) => {
+function showCopyableErrorToast(title: string, message: string) {
   toast.add({
-    title: 'Unexpected Error',
-    description: error,
+    title: title,
+    description: message,
     icon: 'i-lucide-circle-alert',
     color: 'error',
     actions: [
@@ -61,11 +61,15 @@ useErrors((error) => {
         variant: 'outline',
         onClick: (e) => {
           e?.stopPropagation();
-          copy(error);
+          copy(message);
         },
       },
     ],
   });
+}
+
+useErrors((error) => {
+  showCopyableErrorToast('Lighting trigger failed', error);
 });
 
 const fps = computed(() => {
@@ -77,14 +81,14 @@ const fps = computed(() => {
 
 watch(captureEnabled, (enabled) => {
   invoke(enabled ? 'start_capture' : 'stop_capture').catch((e) => {
-    console.error(e);
+    showCopyableErrorToast('Capture failed to start', e);
   });
 });
 
 watch(videoInput, (input) => {
   if (input && input.id !== -1) {
-    invoke('set_capture_device', input).catch((e) => {
-      console.error(e);
+    invoke('set_capture_device', { id: input.id, sourceType: input.source_type }).catch((e) => {
+      showCopyableErrorToast('Failed to set capture target', e);
     });
   }
 });
