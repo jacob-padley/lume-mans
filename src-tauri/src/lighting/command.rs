@@ -62,7 +62,7 @@ pub struct ReleaseAllPlaybacksCommand {
 impl Default for ReleaseAllPlaybacksCommand {
     fn default() -> Self {
         Self {
-            fade_time: 1,
+            fade_time: 0,
             use_master_release_time: true,
         }
     }

@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, serde::Serialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Clone, Copy)]
 pub enum TrackState {
     SessionStart,
     Neutral,

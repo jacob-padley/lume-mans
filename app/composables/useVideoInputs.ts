@@ -1,11 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import * as z from 'zod';
 
+const SourceTypeSchema = z.union([z.literal('Window'), z.literal('Monitor')]);
+export type SourceType = z.infer<typeof SourceTypeSchema>;
+
 const VideoInputSchema = z.object({
   id: z.number().nonnegative(),
   name: z.string(),
   is_primary: z.boolean(),
-  source_type: z.union([z.literal('Window'), z.literal('Monitor')]),
+  source_type: SourceTypeSchema,
 });
 export type VideoInput = z.infer<typeof VideoInputSchema>;
 
@@ -20,10 +23,7 @@ export function useVideoInputs() {
       .then((inputs) => {
         const parsedInputs = VideoInputListSchema.safeParse(inputs);
         if (parsedInputs.success) {
-          // TODO: properly support selecting windows
-          availableInputs.value = parsedInputs.data.filter(
-            (input) => input.source_type === 'Monitor',
-          );
+          availableInputs.value = parsedInputs.data;
         } else {
           console.error(parsedInputs.error);
         }

@@ -14,10 +14,14 @@ pub fn list_inputs() -> Result<Vec<VideoSourceOption>, String> {
 }
 
 #[tauri::command]
-pub async fn set_capture_device(id: u32, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn set_capture_device(
+    id: u32,
+    source_type: VideoSourceType,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let mut capture_device = state.capture_source.write().unwrap();
     *capture_device = VideoSource::new(
-        VideoSourceOption::get(id, VideoSourceType::Monitor).map_err(|e| e.to_string())?,
+        VideoSourceOption::get(id, source_type).map_err(|e| e.to_string())?,
         state.ocr_engine.clone(),
     )
     .map_err(|e| e.to_string())?;

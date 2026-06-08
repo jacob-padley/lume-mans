@@ -10,11 +10,11 @@
     </span>
     <CaptureToggle
       v-model="captureEnabled"
-      :disabled="videoInputId === -1 && availableInputs.length > 0"
+      :disabled="!videoInput && availableInputs.length > 0"
       class="mt-7 mb-3 w-40"
     />
     <VideoInputMenu
-      v-model="videoInputId"
+      v-model="videoInput"
       :inputs="availableInputs"
       :disabled="captureEnabled"
       class="w-3/4"
@@ -36,11 +36,11 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core';
 import { useMetrics } from '~/composables/useMetrics';
-import { useVideoInputs } from '~/composables/useVideoInputs';
+import { useVideoInputs, type SourceType } from '~/composables/useVideoInputs';
 import { useErrors } from '~/composables/useErrors';
 
 const captureEnabled = ref(false);
-const videoInputId = ref(-1);
+const videoInput = ref<{ id: number; source_type: SourceType }>();
 
 const { lastFrameTime } = useMetrics();
 const { availableInputs } = useVideoInputs();
@@ -56,7 +56,7 @@ useErrors((error) => {
     actions: [
       {
         icon: 'i-lucide-files',
-        label: 'Copy Error',
+        label: 'Copy Error Message',
         color: 'neutral',
         variant: 'outline',
         onClick: (e) => {
@@ -81,9 +81,9 @@ watch(captureEnabled, (enabled) => {
   });
 });
 
-watch(videoInputId, (id) => {
-  if (id !== -1) {
-    invoke('set_capture_device', { id }).catch((e) => {
+watch(videoInput, (input) => {
+  if (input && input.id !== -1) {
+    invoke('set_capture_device', input).catch((e) => {
       console.error(e);
     });
   }

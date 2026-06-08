@@ -476,7 +476,7 @@ pub struct VideoSourceOption {
     source_type: VideoSourceType,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum VideoSourceType {
     Window,
     Monitor,

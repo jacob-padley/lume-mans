@@ -8,7 +8,7 @@
     :disabled="disabled"
     :search-input="false"
     class="font-mono justify-center"
-    :highlight="!disabled && model === -1"
+    :highlight="!disabled && !model"
     :ui="{
       item: 'font-mono',
     }"
@@ -16,7 +16,9 @@
 </template>
 
 <script setup lang="ts">
-const model = defineModel<number>();
+import type { SourceType } from '~/composables/useVideoInputs';
+
+const model = defineModel<{ id: number; source_type: SourceType }>();
 const props = defineProps<{
   inputs: VideoInputList;
   disabled: boolean;
@@ -26,23 +28,31 @@ type InputOption = {
   id: number;
   label: string;
   icon: string;
+  source_type: SourceType;
 };
 
 const selectedInputEntry = ref<InputOption>();
 
-const displayedInputs = computed(() =>
-  props.inputs.map((input) => ({
+const displayedInputs = computed(() => {
+  const inputs = props.inputs.map((input) => ({
     id: input.id,
     label: input.is_primary ? `${input.name} (Primary Display)` : input.name,
-    icon: 'i-lucide-monitor',
-  })),
-);
+    source_type: input.source_type,
+    icon: input.source_type === 'Monitor' ? 'i-lucide-monitor' : 'i-lucide-app-window',
+  }));
+  const monitorInputs = inputs.filter((input) => input.source_type === 'Monitor');
+  const windowInputs = inputs.filter((input) => input.source_type === 'Window');
+  return [monitorInputs, windowInputs];
+});
 
 watch(selectedInputEntry, (selected) => {
   if (selected) {
-    model.value = selected.id;
+    model.value = {
+      id: selected.id,
+      source_type: selected.source_type,
+    };
   } else {
-    model.value = -1;
+    model.value = undefined;
   }
 });
 </script>
