@@ -33,3 +33,4 @@ tokio = { version = "1.52.3", features = ["time"] }
 regex = "1.12.3"
 jcap = { path = "jcap" }
 image = "0.25.10"
+reqwest = "0.13.4"

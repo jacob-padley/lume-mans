@@ -20,7 +20,10 @@ export function useVideoInputs() {
       .then((inputs) => {
         const parsedInputs = VideoInputListSchema.safeParse(inputs);
         if (parsedInputs.success) {
-          availableInputs.value = parsedInputs.data;
+          // TODO: properly support selecting windows
+          availableInputs.value = parsedInputs.data.filter(
+            (input) => input.source_type === 'Monitor',
+          );
         } else {
           console.error(parsedInputs.error);
         }

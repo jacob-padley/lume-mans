@@ -136,9 +136,7 @@ impl VideoSource {
 
     pub fn start_capture(&self) -> anyhow::Result<()> {
         if !jcap::has_permission() && !jcap::request_permission() {
-            return Err(anyhow::Error::msg(
-                "Permission not granted to capture screen",
-            ));
+            return Err(anyhow::anyhow!("Permission not granted to capture screen",));
         }
         let source = self.source_option.as_target().ok();
         let mut capturer = Capturer::build(Options {
@@ -512,10 +510,11 @@ impl VideoSourceOption {
             }
         }
 
-        Err(anyhow::Error::msg(format!(
+        Err(anyhow::anyhow!(
             "No monitor found with id {} and type {:?}",
-            id, source_type
-        )))
+            id,
+            source_type
+        ))
     }
 
     pub fn as_target(&self) -> anyhow::Result<Target> {
@@ -536,7 +535,7 @@ impl VideoSourceOption {
                 }
             }
         }
-        Err(anyhow::Error::msg("Target not found"))
+        Err(anyhow::anyhow!("Target not found"))
     }
 }
 

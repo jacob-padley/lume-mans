@@ -37,12 +37,36 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useMetrics } from '~/composables/useMetrics';
 import { useVideoInputs } from '~/composables/useVideoInputs';
+import { useErrors } from '~/composables/useErrors';
 
 const captureEnabled = ref(false);
 const videoInputId = ref(-1);
 
 const { lastFrameTime } = useMetrics();
 const { availableInputs } = useVideoInputs();
+const toast = useToast();
+const { copy } = useClipboard();
+
+useErrors((error) => {
+  toast.add({
+    title: 'Unexpected Error',
+    description: error,
+    icon: 'i-lucide-circle-alert',
+    color: 'error',
+    actions: [
+      {
+        icon: 'i-lucide-files',
+        label: 'Copy Error',
+        color: 'neutral',
+        variant: 'outline',
+        onClick: (e) => {
+          e?.stopPropagation();
+          copy(error);
+        },
+      },
+    ],
+  });
+});
 
 const fps = computed(() => {
   if (lastFrameTime.value <= 0) {
