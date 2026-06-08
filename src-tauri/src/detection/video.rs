@@ -136,7 +136,7 @@ impl VideoSource {
 
     pub fn start_capture(&self) -> anyhow::Result<()> {
         if !jcap::has_permission() && !jcap::request_permission() {
-            return Err(anyhow::anyhow!("Permission not granted to capture screen",));
+            return Err(anyhow::anyhow!("Permission not granted to capture screen"));
         }
         let source = self.source_option.as_target().ok();
         let mut capturer = Capturer::build(Options {
