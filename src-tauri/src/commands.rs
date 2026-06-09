@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 use tokio::time::{interval, MissedTickBehavior};
 
-use crate::detection::source::DetectionSource;
-use crate::detection::state::{SessionTime, TrackState};
 use crate::detection::video::{VideoSource, VideoSourceOption, VideoSourceType};
+use crate::detection::DetectionSource;
+use crate::detection::{SessionTime, TrackState};
 use crate::AppState;
 
 #[tauri::command]

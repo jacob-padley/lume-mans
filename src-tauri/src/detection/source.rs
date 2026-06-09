@@ -1,4 +1,4 @@
-use crate::detection::state::{SessionTime, TrackState};
+use crate::detection::{SessionTime, TrackState};
 
 /// A DetectionSource represents any structure that can provide the current state of the track and
 /// the session time.
