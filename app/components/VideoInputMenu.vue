@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SourceType } from '~/composables/useVideoInputs';
+import type { SourceType, VideoInputList } from '~/composables/useVideoInputs';
 
 const model = defineModel<{ id: number; source_type: SourceType }>();
 const props = defineProps<{

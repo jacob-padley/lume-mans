@@ -1,6 +1,8 @@
+use std::error::Error;
 use std::sync::mpsc;
 
 use super::Options;
+use crate::capturer::CapturerBuildError;
 use crate::frame::Frame;
 
 #[cfg(target_os = "macos")]
@@ -58,35 +60,38 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(options: &Options, tx: mpsc::Sender<ChannelItem>) -> Engine {
+    pub fn new(
+        options: &Options,
+        tx: mpsc::Sender<ChannelItem>,
+    ) -> Result<Engine, CapturerBuildError> {
         #[cfg(target_os = "macos")]
         {
             let error_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let mac = mac::create_capturer(options, tx, error_flag.clone()).unwrap();
+            let mac = mac::create_capturer(options, tx, error_flag.clone())?;
 
-            Engine {
+            Ok(Engine {
                 mac,
                 error_flag,
                 options: (*options).clone(),
-            }
+            })
         }
 
         #[cfg(target_os = "windows")]
         {
-            let win = win::create_capturer(&options, tx).unwrap();
-            return Engine {
+            let win = win::create_capturer(&options, tx)?;
+            Ok(Engine {
                 win,
                 options: (*options).clone(),
-            };
+            })
         }
 
         #[cfg(target_os = "linux")]
         {
-            let linux = linux::create_capturer(options, tx);
-            Engine {
+            let linux = linux::create_capturer(options, tx)?;
+            Ok(Engine {
                 linux,
                 options: (*options).clone(),
-            }
+            })
         }
     }
 

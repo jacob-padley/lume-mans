@@ -22,16 +22,16 @@ impl LightingController {
         let route = match command {
             LightingCommand::PlayPlayback(command) => {
                 let handle_arg = match command.handle {
-                    PlaybackHandle::UserNumber(arg) => format!("handle_userNumber={}", arg),
-                    PlaybackHandle::Location(arg) => format!("handle_location={}", arg),
-                    PlaybackHandle::TitanId(arg) => format!("handle_titanId={}", arg),
+                    PlaybackHandle::UserNumber(arg) => format!("userNumber={}", arg),
+                    PlaybackHandle::Location(arg) => format!("location={}", arg),
+                    PlaybackHandle::TitanId(arg) => format!("titanId={}", arg),
                 };
                 let level_arg = match command.level {
-                    PlaybackLevel::Level(arg) => format!("level_level={}", arg),
-                    PlaybackLevel::LevelDelta(arg) => format!("level_leveldelta={}", arg),
+                    PlaybackLevel::Level(arg) => format!("level={}", arg),
+                    PlaybackLevel::LevelDelta(arg) => format!("leveldelta={}", arg),
                 };
                 format!(
-                    "{}/Playbacks/PlayPlayback?handle_{}&{}&accuracy={}",
+                    "{}/Playbacks/PlayPlayback?handle_{}&level_{}&accuracy={}",
                     self.api_base(),
                     handle_arg,
                     level_arg,

@@ -14,9 +14,10 @@ pub struct VideoStateMachine {
 
 impl VideoStateMachine {
     pub fn new() -> Self {
+        let (sender, _) = broadcast::channel(8);
         Self {
             state: TrackState::SessionStart,
-            sender: broadcast::Sender::new(16),
+            sender,
         }
     }
 

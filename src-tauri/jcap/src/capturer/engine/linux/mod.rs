@@ -31,7 +31,7 @@ use pw::{
 };
 
 use crate::{
-    capturer::Options,
+    capturer::{Capturer, CapturerBuildError, Options},
     frame::{BGRxFrame, Frame, RGBFrame, RGBxFrame, VideoFrame, XBGRFrame},
 };
 
@@ -315,18 +315,16 @@ pub struct LinuxCapturer {
 }
 
 impl LinuxCapturer {
-    // TODO: Error handling
-    pub fn new(options: &Options, tx: mpsc::Sender<Frame>) -> Self {
+    pub fn new(options: &Options, tx: mpsc::Sender<Frame>) -> Result<Self, CapturerBuildError> {
         let connection =
             dbus::blocking::Connection::new_session().expect("Failed to create dbus connection");
         let stream_id = ScreenCastPortal::new(&connection)
             .show_cursor(options.show_cursor)
-            .expect("Unsupported cursor mode")
+            .map_err(|_| CapturerBuildError::NotSupported)?
             .create_stream()
-            .expect("Failed to get screencast stream")
+            .map_err(|_| CapturerBuildError::PermissionNotGranted)?
             .pw_node_id();
 
-        // TODO: Fix this hack
         let options = options.clone();
         let (ready_sender, ready_recv) = sync_channel(1);
         let capturer_join_handle = std::thread::spawn(move || {
@@ -341,10 +339,10 @@ impl LinuxCapturer {
             panic!("Failed to setup capturer");
         }
 
-        Self {
+        Ok(Self {
             capturer_join_handle: Some(capturer_join_handle),
             _connection: connection,
-        }
+        })
     }
 
     pub fn start_capture(&self) {
@@ -363,6 +361,9 @@ impl LinuxCapturer {
     }
 }
 
-pub fn create_capturer(options: &Options, tx: mpsc::Sender<Frame>) -> LinuxCapturer {
+pub fn create_capturer(
+    options: &Options,
+    tx: mpsc::Sender<Frame>,
+) -> Result<LinuxCapturer, CapturerBuildError> {
     LinuxCapturer::new(options, tx)
 }

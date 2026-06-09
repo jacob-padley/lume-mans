@@ -115,7 +115,7 @@ impl Capturer {
         }
 
         let (tx, rx) = mpsc::channel();
-        let engine = engine::Engine::new(&options, tx);
+        let engine = engine::Engine::new(&options, tx)?;
 
         Ok(Capturer { engine, rx })
     }

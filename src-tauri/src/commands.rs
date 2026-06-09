@@ -30,7 +30,7 @@ pub async fn set_capture_device(
 }
 
 #[tauri::command]
-pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let is_capturing = state.capture_active.clone();
 
     if is_capturing.load(Ordering::SeqCst) {
@@ -44,11 +44,11 @@ pub async fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result
 
     let mut last_tick = Instant::now();
 
-    tokio::spawn(async move {
-        {
-            let capture_source = capture_source_lock.write().unwrap();
-            let _ = capture_source.start_capture();
-        }
+    {
+        let capture_source = capture_source_lock.write().unwrap();
+        capture_source.start_capture().map_err(|e| e.to_string())?;
+    }
+    tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {

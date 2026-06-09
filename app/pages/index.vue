@@ -82,6 +82,7 @@ const fps = computed(() => {
 watch(captureEnabled, (enabled) => {
   invoke(enabled ? 'start_capture' : 'stop_capture').catch((e) => {
     showCopyableErrorToast('Capture failed to start', e);
+    captureEnabled.value = false;
   });
 });
 

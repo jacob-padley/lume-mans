@@ -145,7 +145,7 @@ impl VideoSource {
             show_cursor: false,
             show_highlight: false,
             excluded_targets: None,
-            output_type: FrameType::RGB,
+            output_type: FrameType::BGRAFrame,
             output_resolution: Resolution::Captured,
             crop_area: None,
             captures_audio: false,
@@ -157,7 +157,7 @@ impl VideoSource {
         // Spin off a tokio thread to consume images from the stream and store them for the OCR
         // process to use when it needs to.
         let producer_frame_lock = self.latest_frame.clone();
-        tokio::task::spawn_blocking(move || {
+        tauri::async_runtime::spawn_blocking(move || {
             capturer.start_capture();
             loop {
                 if !capture_active.load(Ordering::SeqCst) {
