@@ -2743,6 +2743,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rten",
+ "rten-imageproc",
  "serde",
  "serde_json",
  "tauri",

@@ -69,7 +69,7 @@ pub fn start_capture(app: AppHandle, state: State<'_, AppState>) -> Result<(), S
             let maybe_timer: Option<SessionTime>;
             // Enclose in a scope to close mutexes as early as possible
             {
-                let capture_source = capture_source_lock.read().unwrap();
+                let mut capture_source = capture_source_lock.write().unwrap();
                 // Get whatever state the video source is able to provide for this frame
                 match capture_source.get_track_state() {
                     Some((state, timer)) => {

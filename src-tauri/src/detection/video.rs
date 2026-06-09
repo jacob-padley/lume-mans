@@ -7,6 +7,7 @@ use jcap::{
 };
 use ocrs::{ImageSource, OcrEngine};
 use regex::Regex;
+use rten_imageproc::{min_area_rect, PointF};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -28,6 +29,9 @@ struct RelativeBoundingBox {
     width: f32,
     height: f32,
 }
+
+// Minimum ratio of changed pixels to re-run OCR on a given region of the screen
+const FRAME_DELTA_THRESHOLD: f64 = 0.05;
 
 // Bounding boxes for WEC broadcast graphics as of 2026
 const STATUS_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
@@ -70,6 +74,9 @@ pub struct VideoSource {
     capture_active: Arc<AtomicBool>,
     ocr_engine: Arc<OcrEngine>,
     latest_frame: Arc<Mutex<Option<RawFrame>>>,
+    status_ocr_frame: OptimizedOCRFrame,
+    notification_ocr_frame: OptimizedOCRFrame,
+    timer_ocr_frame: OptimizedOCRFrame,
     detection_patterns: VideoDetectionPatterns,
 }
 
@@ -115,6 +122,9 @@ impl VideoSource {
             ocr_engine,
             capture_active: Arc::new(AtomicBool::new(false)),
             latest_frame: Arc::new(Mutex::new(None)),
+            status_ocr_frame: OptimizedOCRFrame::new(OCRMode::MultiWord, FRAME_DELTA_THRESHOLD),
+            notification_ocr_frame: OptimizedOCRFrame::new(OCRMode::MultiWord, FRAME_DELTA_THRESHOLD),
+            timer_ocr_frame: OptimizedOCRFrame::new(OCRMode::SingleWord, FRAME_DELTA_THRESHOLD),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
@@ -218,7 +228,7 @@ impl DetectionSource for VideoSource {
     /// get_track_state reports the current TrackState and SessionTime that this source can
     /// determine. It is not always the case that we can detect this information, so it is all
     /// optional.
-    fn get_track_state(&self) -> Option<(Option<TrackState>, Option<SessionTime>)> {
+    fn get_track_state(&mut self) -> Option<(Option<TrackState>, Option<SessionTime>)> {
         // Check that the capturer is open
         if !self.capture_active.load(Ordering::SeqCst) {
             return None;
@@ -340,29 +350,12 @@ impl DetectionSource for VideoSource {
                 )
                 .into_luma8();
 
-            // OCR pre-prep
-            let status_source = ImageSource::from_bytes(
-                status_cropped.as_bytes(),
-                (status_box.width, status_box.height),
-            )
-            .ok()?;
-            let timer_source = ImageSource::from_bytes(
-                timer_cropped.as_bytes(),
-                (timer_box.width, timer_box.height),
-            )
-            .ok()?;
-            let notification_source = ImageSource::from_bytes(
-                notification_cropped.as_bytes(),
-                (notification_box.width, notification_box.height),
-            )
-            .ok()?;
-            let status_input = self.ocr_engine.prepare_input(status_source).ok()?;
-            let timer_input = self.ocr_engine.prepare_input(timer_source).ok()?;
-            let notification_input = self.ocr_engine.prepare_input(notification_source).ok()?;
-
             // Read the session timer if it is available
-            let timer_option = match self.ocr_engine.get_text(&timer_input) {
-                Ok(ref timer_text)
+            let timer_option = match self
+                .timer_ocr_frame
+                .get_text(timer_cropped, &self.ocr_engine)
+            {
+                Some(ref timer_text)
                     if let Some(caps) = self.detection_patterns.timer.captures(timer_text) =>
                 {
                     // There is not always an hour capturing group as it is optional
@@ -381,7 +374,12 @@ impl DetectionSource for VideoSource {
                         )),
                     }
                 }
-                Ok(finish_text) if self.detection_patterns.session_end.is_match(&finish_text) => {
+                Some(finish_text)
+                    if self
+                        .detection_patterns
+                        .session_end
+                        .is_match(&finish_text.to_uppercase()) =>
+                {
                     Some(SessionTime::new(0, 0, 0))
                 }
                 _ => None,
@@ -395,11 +393,13 @@ impl DetectionSource for VideoSource {
             }
 
             // Extract the rest of the relevant text
-            let status_text = self.ocr_engine.get_text(&status_input).ok()?.to_uppercase();
+            let status_text = self
+                .status_ocr_frame
+                .get_text(status_cropped, &self.ocr_engine)?
+                .to_uppercase();
             let notification_text = self
-                .ocr_engine
-                .get_text(&notification_input)
-                .ok()?
+                .notification_ocr_frame
+                .get_text(notification_cropped, &self.ocr_engine)?
                 .to_uppercase();
 
             // Detection priority order from this point on:
@@ -463,6 +463,107 @@ impl DetectionSource for VideoSource {
             return Some((state_option, timer_option));
         }
         None
+    }
+}
+
+struct OptimizedOCRFrame {
+    last_frame: Option<ImageBuffer<Luma<u8>, Vec<u8>>>,
+    last_text: Option<String>,
+    frame_delta_threshold: f64,
+    mode: OCRMode,
+}
+
+enum OCRMode {
+    SingleWord,
+    MultiWord,
+}
+
+impl OptimizedOCRFrame {
+    fn new(mode: OCRMode, frame_delta_threshold: f64) -> Self {
+        Self {
+            last_frame: None,
+            last_text: None,
+            frame_delta_threshold,
+            mode,
+        }
+    }
+
+    pub fn get_text(
+        &mut self,
+        new_frame: ImageBuffer<Luma<u8>, Vec<u8>>,
+        ocr_engine: &OcrEngine,
+    ) -> Option<String> {
+        if self.last_frame.is_none() || self.last_text.is_none() {
+            // This is the first frame or we have no cached text for this box
+            let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
+            self.last_frame = Some(new_frame);
+            self.last_text = Some(text.clone());
+            return Some(text);
+        } else if self.get_frame_delta(&new_frame) > self.frame_delta_threshold {
+            // The frame is new
+            let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
+            self.last_frame = Some(new_frame);
+            self.last_text = Some(text.clone());
+            return Some(text);
+        }
+
+        // Default to using the cached last text. We already checked that this is not none in the
+        // earlier if statement so the unwrap is safe here.
+        Some(self.last_text.clone().unwrap())
+    }
+
+    fn run_ocr(
+        &self,
+        frame: &ImageBuffer<Luma<u8>, Vec<u8>>,
+        ocr_engine: &OcrEngine,
+    ) -> anyhow::Result<String> {
+        let source = ImageSource::from_bytes(frame.as_bytes(), (frame.width(), frame.height()))?;
+        let input = ocr_engine.prepare_input(source)?;
+        match self.mode {
+            OCRMode::SingleWord => {
+                let bounding_rect = vec![
+                    PointF { x: 0.0, y: 0.0 },
+                    PointF {
+                        x: frame.width() as f32,
+                        y: 0.0,
+                    },
+                    PointF {
+                        x: frame.width() as f32,
+                        y: frame.height() as f32,
+                    },
+                    PointF {
+                        x: 0.0,
+                        y: frame.height() as f32,
+                    },
+                ];
+                let area_rect = min_area_rect(&bounding_rect);
+                if let Some(line_rect) = area_rect {
+                    if let Ok(lines) = ocr_engine.recognize_text(&input, &[vec![line_rect]]) {
+                        // We only expect one line
+                        if let Some(Some(line)) = lines.first() {
+                            return Ok(line.to_string());
+                        }
+                    }
+                }
+
+                Err(anyhow::anyhow!("OCR did not find any text in the frame"))
+            }
+            OCRMode::MultiWord => ocr_engine.get_text(&input),
+        }
+    }
+
+    fn get_frame_delta(&self, new_frame: &ImageBuffer<Luma<u8>, Vec<u8>>) -> f64 {
+        let noise_threshold: u8 = 15;
+        if let Some(ref last_frame) = self.last_frame {
+            let changed_pixels = new_frame
+                .as_raw()
+                .iter()
+                .zip(last_frame.as_raw().iter())
+                .filter(|(&curr, &old)| curr.abs_diff(old) > noise_threshold)
+                .count();
+            return changed_pixels as f64 / new_frame.len() as f64;
+        }
+        1.0
     }
 }
 
