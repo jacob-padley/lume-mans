@@ -5,6 +5,11 @@ pub fn is_supported() -> bool {
 }
 
 // TODO
+pub fn request_permission() -> bool {
+    true
+}
+
+// TODO
 pub fn has_permission() -> bool {
     true
     // false

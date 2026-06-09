@@ -52,15 +52,17 @@ pub fn get_all_targets() -> Vec<Target> {
     return linux::get_all_targets();
 }
 
+#[cfg(target_os = "macos")]
 pub fn get_scale_factor(target: &Target) -> f64 {
-    #[cfg(target_os = "macos")]
-    return mac::get_scale_factor(target);
-
-    #[cfg(target_os = "windows")]
-    return win::get_scale_factor(target);
-
-    #[cfg(target_os = "linux")]
-    return 1.0;
+    mac::get_scale_factor(target)
+}
+#[cfg(target_os = "windows")]
+pub fn get_scale_factor(target: &Target) -> f64 {
+    win::get_scale_factor(target)
+}
+#[cfg(target_os = "linux")]
+pub fn get_scale_factor(_target: &Target) -> f64 {
+    1.0
 }
 
 pub fn get_main_display() -> Display {
@@ -77,13 +79,15 @@ pub fn get_main_display() -> Display {
     };
 }
 
+#[cfg(target_os = "macos")]
 pub fn get_target_dimensions(target: &Target) -> (u64, u64) {
-    #[cfg(target_os = "macos")]
-    return mac::get_target_dimensions(target);
-
-    #[cfg(target_os = "windows")]
-    return win::get_target_dimensions(target);
-
-    #[cfg(target_os = "linux")]
-    return (0, 0); // Return 0, rely on the PipeWire frame dimensions later
+    mac::get_target_dimensions(target)
+}
+#[cfg(target_os = "windows")]
+pub fn get_target_dimensions(target: &Target) -> (u64, u64) {
+    win::get_target_dimensions(target)
+}
+#[cfg(target_os = "linux")]
+pub fn get_target_dimensions(_target: &Target) -> (u64, u64) {
+    (0, 0)
 }

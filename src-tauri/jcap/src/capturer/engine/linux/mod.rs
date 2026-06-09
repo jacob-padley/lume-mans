@@ -31,7 +31,7 @@ use pw::{
 };
 
 use crate::{
-    capturer::{Capturer, CapturerBuildError, Options},
+    capturer::{CapturerBuildError, Options},
     frame::{BGRxFrame, Frame, RGBFrame, RGBxFrame, VideoFrame, XBGRFrame},
 };
 
