@@ -1,7 +1,7 @@
 [package]
 name = "lume-mans"
-version = "0.2.0"
-description = "A Tauri App"
+version = "0.4.0"
+description = "Live track status monitoring and lighting cues for the 24 Hours of Le Mans"
 authors = ["you"]
 edition = "2021"
 
@@ -14,6 +14,10 @@ edition = "2021"
 name = "lume_mans_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[workspace]
+resolver = "3"
+members = ["jcap"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -22,19 +26,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-xcap = "0.9.6"
 anyhow = "1.0.102"
 ocrs = "0.12.2"
 rten = "0.24.0"
 tokio = { version = "1.52.3", features = ["time"] }
 regex = "1.12.3"
-
-# Profile overrides for ocrs performance
-[profile.dev.package.ocrs]
-opt-level = 3
-
-[profile.dev.package.rten]
-opt-level = 3
-
-[profile.dev.package.rten-tensor]
-opt-level = 3
+jcap = { path = "jcap" }
+image = "0.25.10"
+reqwest = "0.13.4"

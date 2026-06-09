@@ -1,10 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import * as z from 'zod';
 
+const SourceTypeSchema = z.union([z.literal('Window'), z.literal('Monitor')]);
+export type SourceType = z.infer<typeof SourceTypeSchema>;
+
 const VideoInputSchema = z.object({
   id: z.number().nonnegative(),
   name: z.string(),
   is_primary: z.boolean(),
+  source_type: SourceTypeSchema,
 });
 export type VideoInput = z.infer<typeof VideoInputSchema>;
 

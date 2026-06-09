@@ -1,13 +1,14 @@
 <template>
   <USelectMenu
+    v-if="props.inputs.length > 0"
     v-model="selectedInputEntry"
     placeholder="Select Video Source"
     icon="i-lucide-monitor"
-    :items="inputs"
+    :items="displayedInputs"
     :disabled="disabled"
     :search-input="false"
     class="font-mono justify-center"
-    :highlight="!disabled && model === -1"
+    :highlight="!disabled && !model"
     :ui="{
       item: 'font-mono',
     }"
@@ -15,29 +16,43 @@
 </template>
 
 <script setup lang="ts">
-import { useVideoInputs } from '~/composables/useVideoInputs';
+import type { SourceType, VideoInputList } from '~/composables/useVideoInputs';
 
-const selectedInputEntry = ref<{ id: number; label: string; icon: string }>();
-const { availableInputs } = useVideoInputs();
-
-const model = defineModel<number>();
-defineProps<{
+const model = defineModel<{ id: number; source_type: SourceType }>();
+const props = defineProps<{
+  inputs: VideoInputList;
   disabled: boolean;
 }>();
 
-watch(selectedInputEntry, (selected) => {
-  if (selected) {
-    model.value = selected.id;
-  } else {
-    model.value = -1;
-  }
-});
+type InputOption = {
+  id: number;
+  label: string;
+  icon: string;
+  source_type: SourceType;
+};
 
-const inputs = computed(() =>
-  availableInputs.value.map((input) => ({
+const selectedInputEntry = ref<InputOption>();
+
+const displayedInputs = computed(() => {
+  const inputs = props.inputs.map((input) => ({
     id: input.id,
     label: input.is_primary ? `${input.name} (Primary Display)` : input.name,
-    icon: 'i-lucide-monitor',
-  })),
-);
+    source_type: input.source_type,
+    icon: input.source_type === 'Monitor' ? 'i-lucide-monitor' : 'i-lucide-app-window',
+  }));
+  const monitorInputs = inputs.filter((input) => input.source_type === 'Monitor');
+  const windowInputs = inputs.filter((input) => input.source_type === 'Window');
+  return [monitorInputs, windowInputs];
+});
+
+watch(selectedInputEntry, (selected) => {
+  if (selected) {
+    model.value = {
+      id: selected.id,
+      source_type: selected.source_type,
+    };
+  } else {
+    model.value = undefined;
+  }
+});
 </script>

@@ -1,37 +1,40 @@
-use tauri::{AppHandle, Emitter};
-
-#[derive(Debug, PartialEq, Eq, serde::Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Clone, Copy)]
 pub enum TrackState {
     SessionStart,
+    Neutral,
     GreenFlag,
     YellowFlag,
     FullCourseYellow,
+    FullCourseYellowEnding,
     SafetyCar,
-    VirtualSafetyCar,
     SafetyCarEnding,
+    VirtualSafetyCar,
+    VirtualSafetyCarEnding,
     RedFlag,
     CheckeredFlag,
 }
 
-pub struct TrackStateManager {
-    state: TrackState,
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct SessionTime {
+    hours: i32,
+    minutes: i32,
+    seconds: i32,
 }
 
-impl TrackStateManager {
-    pub fn new() -> Self {
-        TrackStateManager {
-            state: TrackState::SessionStart,
+impl SessionTime {
+    pub fn new(hours: i32, minutes: i32, seconds: i32) -> Self {
+        Self {
+            hours,
+            minutes,
+            seconds,
         }
     }
 
-    pub fn set_state(&mut self, state: TrackState, handle: &AppHandle) {
-        if state != self.state {
-            self.state = state;
-            let _ = handle.emit("track-status", &self.state);
-        }
+    pub fn get_seconds(&self) -> i32 {
+        self.seconds
     }
 
-    pub fn get_state(&self) -> &TrackState {
-        &self.state
+    pub fn is_zero(&self) -> bool {
+        self.hours == 0 && self.minutes == 0 && self.seconds == 0
     }
 }

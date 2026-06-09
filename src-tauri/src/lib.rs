@@ -1,19 +1,26 @@
 mod commands;
 mod detection;
+mod lighting;
 
 use ocrs::{OcrEngine, OcrEngineParams};
 use rten::Model;
+use std::net::Ipv4Addr;
 use std::sync::{atomic::AtomicBool, Arc, RwLock};
-use tauri::{path::BaseDirectory, Manager};
+use tauri::{path::BaseDirectory, Emitter, Manager};
 
-use crate::detection::state::TrackStateManager;
+use crate::detection::state::TrackState;
+use crate::detection::state_machine::{TrackStateMachine, VideoStateMachine};
 use crate::detection::video::{VideoSource, VideoSourceOption};
+use crate::lighting::command::{
+    LightingCommand, PlayPlaybackCommand, PlaybackHandle, ReleaseAllPlaybacksCommand,
+};
+use crate::lighting::controller::LightingController;
 
 struct AppState {
     ocr_engine: Arc<OcrEngine>,
     capture_active: Arc<AtomicBool>,
     capture_source: Arc<RwLock<VideoSource>>,
-    state_manager: Arc<RwLock<TrackStateManager>>,
+    state_machine: Arc<RwLock<dyn TrackStateMachine + Send + Sync>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -45,17 +52,74 @@ pub fn run() {
                 .expect("Failed to initialise OCR engine"),
             );
 
-            let default_capture_source = VideoSource::new(
-                VideoSourceOption::primary().expect("Failed to find primary video capture device"),
-                ocr_engine.clone(),
-            )
-            .expect("Failed to initialize primary video capture source");
+            let default_capture_source =
+                VideoSource::new(VideoSourceOption::primary(), ocr_engine.clone())
+                    .expect("Failed to initialize primary video capture source");
+
+            let state_machine = VideoStateMachine::new();
+            let emit_app_handle = app.handle().clone();
+            let mut emit_state_receiver = state_machine.subscribe();
+
+            // Start a tokio task to handle changes in track state
+            tauri::async_runtime::spawn(async move {
+                while let Ok(new_state) = emit_state_receiver.recv().await {
+                    let _ = emit_app_handle.emit("track-status", new_state);
+                }
+            });
+
+            let mut lighting_state_receiver = state_machine.subscribe();
+            let lighting_app_handle = app.handle().clone();
+            // Use this channel to thread the track status callback from the HTTP requests to the
+            // lighting API in case they block for a long time
+            tauri::async_runtime::spawn(async move {
+                let lighting_controller = LightingController::new(Ipv4Addr::LOCALHOST, 4430);
+                while let Ok(new_state) = lighting_state_receiver.recv().await {
+                    let playback_handle = match new_state {
+                        TrackState::GreenFlag => PlaybackHandle::UserNumber(4),
+                        TrackState::SafetyCar | TrackState::VirtualSafetyCar => {
+                            PlaybackHandle::UserNumber(1)
+                        }
+                        TrackState::YellowFlag => PlaybackHandle::UserNumber(2),
+                        TrackState::RedFlag => PlaybackHandle::UserNumber(3),
+                        TrackState::SafetyCarEnding
+                        | TrackState::FullCourseYellowEnding
+                        | TrackState::VirtualSafetyCarEnding => PlaybackHandle::UserNumber(6),
+                        TrackState::FullCourseYellow => PlaybackHandle::UserNumber(7),
+                        // TODO: checkered flag event
+                        _ => continue,
+                    };
+
+                    // Release all playbacks first
+                    if let Err(e) = lighting_controller
+                        .send(LightingCommand::ReleaseAllPlaybacks(
+                            ReleaseAllPlaybacksCommand {
+                                ..Default::default()
+                            },
+                        ))
+                        .await
+                    {
+                        eprintln!("ReleaseAllPlaybacks failed: {}", e);
+                        let _ = lighting_app_handle.emit("error", e.to_string());
+                        continue;
+                    }
+                    // Now play the lighting command
+                    if let Err(e) = lighting_controller
+                        .send(LightingCommand::PlayPlayback(
+                            PlayPlaybackCommand::from_handle(playback_handle),
+                        ))
+                        .await
+                    {
+                        eprintln!("PlayPlayback failed: {}", e);
+                        let _ = lighting_app_handle.emit("error", e.to_string());
+                    }
+                }
+            });
 
             app.manage(AppState {
                 ocr_engine: ocr_engine.clone(),
                 capture_active: Arc::new(AtomicBool::new(false)),
                 capture_source: Arc::new(RwLock::new(default_capture_source)),
-                state_manager: Arc::new(RwLock::new(TrackStateManager::new())),
+                state_machine: Arc::new(RwLock::new(state_machine)),
             });
 
             Ok(())
@@ -65,6 +129,7 @@ pub fn run() {
             commands::list_inputs,
             commands::set_capture_device,
             commands::start_capture,
+            commands::override_status,
             commands::stop_capture
         ])
         .run(tauri::generate_context!())
