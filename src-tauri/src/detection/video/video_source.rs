@@ -12,7 +12,7 @@ use std::sync::{
     Arc, Mutex,
 };
 
-use crate::detection::video::optimized_ocr::{OCRMode, OptimizedOCRFrame};
+use crate::detection::video::optimized_ocr::OptimizedOCRFrame;
 use crate::detection::DetectionSource;
 use crate::detection::{SessionTime, TrackState};
 
@@ -122,9 +122,9 @@ impl VideoSource {
             ocr_engine,
             capture_active: Arc::new(AtomicBool::new(false)),
             latest_frame: Arc::new(Mutex::new(None)),
-            status_ocr_frame: OptimizedOCRFrame::new(OCRMode::MultiWord, FRAME_DELTA_THRESHOLD),
-            notification_ocr_frame: OptimizedOCRFrame::new(OCRMode::MultiWord, FRAME_DELTA_THRESHOLD),
-            timer_ocr_frame: OptimizedOCRFrame::new(OCRMode::SingleWord, FRAME_DELTA_THRESHOLD),
+            status_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
+            notification_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
+            timer_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
