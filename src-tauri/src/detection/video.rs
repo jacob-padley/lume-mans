@@ -1,3 +1,4 @@
+mod optimized_ocr;
 mod video_source;
 mod video_state_machine;
 
