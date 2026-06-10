@@ -31,7 +31,15 @@ struct RelativeBoundingBox {
 }
 
 // Minimum ratio of changed pixels to re-run OCR on a given region of the screen
-const FRAME_DELTA_THRESHOLD: f64 = 0.05;
+const STATUS_FRAME_DELTA_THRESHOLD: f64 = 0.03;
+const NOTIFICATION_FRAME_DELTA_THRESHOLD: f64 = 0.05;
+const TIMER_FRAME_DELTA_THRESHOLD: f64 = 0.01;
+
+// Maximum age in seconds of a cached frame before OCR must be re-run regardless of frame diff
+// result.
+const STATUS_MAX_FRAME_AGE: f64 = 1.0;
+const NOTIFICATION_MAX_FRAME_AGE: f64 = 3.0;
+const TIMER_MAX_FRAME_AGE: f64 = 1.0;
 
 // Bounding boxes for WEC broadcast graphics as of 2026
 const STATUS_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
@@ -122,9 +130,9 @@ impl VideoSource {
             ocr_engine,
             capture_active: Arc::new(AtomicBool::new(false)),
             latest_frame: Arc::new(Mutex::new(None)),
-            status_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
-            notification_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
-            timer_ocr_frame: OptimizedOCRFrame::new(FRAME_DELTA_THRESHOLD),
+            status_ocr_frame: OptimizedOCRFrame::new(STATUS_FRAME_DELTA_THRESHOLD, STATUS_MAX_FRAME_AGE),
+            notification_ocr_frame: OptimizedOCRFrame::new(NOTIFICATION_FRAME_DELTA_THRESHOLD, NOTIFICATION_MAX_FRAME_AGE),
+            timer_ocr_frame: OptimizedOCRFrame::new(TIMER_FRAME_DELTA_THRESHOLD, TIMER_MAX_FRAME_AGE),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),

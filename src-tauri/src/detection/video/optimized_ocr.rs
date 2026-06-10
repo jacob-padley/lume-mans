@@ -1,20 +1,24 @@
 use image::{EncodableLayout, ImageBuffer, Luma};
 use ocrs::{ImageSource, OcrEngine};
 use rten_imageproc::{min_area_rect, PointF, RotatedRect};
-use std::cmp;
+use std::{cmp, time::Instant};
 
 pub struct OptimizedOCRFrame {
     last_frame: Option<ImageBuffer<Luma<u8>, Vec<u8>>>,
     last_text: Option<String>,
+    last_frame_time: Option<Instant>,
     frame_delta_threshold: f64,
+    max_frame_age: f64,
 }
 
 impl OptimizedOCRFrame {
-    pub fn new(frame_delta_threshold: f64) -> Self {
+    pub fn new(frame_delta_threshold: f64, max_frame_age: f64) -> Self {
         Self {
             last_frame: None,
+            last_frame_time: None,
             last_text: None,
             frame_delta_threshold,
+            max_frame_age,
         }
     }
 
@@ -23,16 +27,20 @@ impl OptimizedOCRFrame {
         new_frame: ImageBuffer<Luma<u8>, Vec<u8>>,
         ocr_engine: &OcrEngine,
     ) -> Option<String> {
-        if self.last_frame.is_none() || self.last_text.is_none() {
+        if self.last_frame_time.is_none() || self.last_frame.is_none() || self.last_text.is_none() {
             // This is the first frame or we have no cached text for this box
             let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
             self.last_frame = Some(new_frame);
+            self.last_frame_time = Some(Instant::now());
             self.last_text = Some(text.clone());
             return Some(text);
-        } else if self.get_frame_delta(&new_frame) > self.frame_delta_threshold {
+        } else if self.last_frame_time.unwrap().elapsed().as_secs_f64() > self.max_frame_age
+            || self.get_frame_delta(&new_frame) > self.frame_delta_threshold
+        {
             // The frame is new
             let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
             self.last_frame = Some(new_frame);
+            self.last_frame_time = Some(Instant::now());
             self.last_text = Some(text.clone());
             return Some(text);
         }
@@ -64,7 +72,7 @@ impl OptimizedOCRFrame {
 
     /// Returns the ratio of new pixels in this new frame compared with the cached frame.
     fn get_frame_delta(&self, new_frame: &ImageBuffer<Luma<u8>, Vec<u8>>) -> f64 {
-        let noise_threshold: u8 = 15;
+        let noise_threshold: u8 = 10;
         if let Some(ref last_frame) = self.last_frame {
             let num_changed_pixels = new_frame
                 .as_raw()
