@@ -7,18 +7,37 @@ pub struct OptimizedOCRFrame {
     last_frame: Option<ImageBuffer<Luma<u8>, Vec<u8>>>,
     last_text: Option<String>,
     last_frame_time: Option<Instant>,
-    frame_delta_threshold: f64,
-    max_frame_age: f64,
+    options: OptimizedOCRFrameOptions,
+}
+
+pub struct OptimizedOCRFrameOptions {
+    // Minimum ratio of pixels that need to have changed in order to re-run OCR on new frames.
+    pub frame_delta_threshold: f64,
+    // Maximum age in seconds of the cached frame before OCR is forced to re-run.
+    pub max_frame_age: f64,
+    // Minimum nunber of words for the frame to count as text. If zero, any number of words greater
+    // than zero is assumed to be valid, otherwise any frames with a word count lower than this
+    // will be assumed to be noise and ignored.
+    pub min_word_count: usize,
+}
+
+impl Default for OptimizedOCRFrameOptions {
+    fn default() -> Self {
+        Self {
+            frame_delta_threshold: 0.05,
+            max_frame_age: 1.0,
+            min_word_count: 0,
+        }
+    }
 }
 
 impl OptimizedOCRFrame {
-    pub fn new(frame_delta_threshold: f64, max_frame_age: f64) -> Self {
+    pub fn new(options: OptimizedOCRFrameOptions) -> Self {
         Self {
             last_frame: None,
             last_frame_time: None,
             last_text: None,
-            frame_delta_threshold,
-            max_frame_age,
+            options,
         }
     }
 
@@ -27,6 +46,7 @@ impl OptimizedOCRFrame {
         new_frame: ImageBuffer<Luma<u8>, Vec<u8>>,
         ocr_engine: &OcrEngine,
     ) -> Option<String> {
+        // DEBUG ONLY: time how long the whole frame takes to OCR
         if self.last_frame_time.is_none() || self.last_frame.is_none() || self.last_text.is_none() {
             // This is the first frame or we have no cached text for this box
             let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
@@ -34,8 +54,8 @@ impl OptimizedOCRFrame {
             self.last_frame_time = Some(Instant::now());
             self.last_text = Some(text.clone());
             return Some(text);
-        } else if self.last_frame_time.unwrap().elapsed().as_secs_f64() > self.max_frame_age
-            || self.get_frame_delta(&new_frame) > self.frame_delta_threshold
+        } else if self.last_frame_time.unwrap().elapsed().as_secs_f64() > self.options.max_frame_age
+            || self.get_frame_delta(&new_frame) > self.options.frame_delta_threshold
         {
             // The frame is new
             let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
@@ -58,7 +78,7 @@ impl OptimizedOCRFrame {
         let source = ImageSource::from_bytes(frame.as_bytes(), (frame.width(), frame.height()))?;
         let input = ocr_engine.prepare_input(source)?;
         let word_rects = self.detect_bounding_boxes(frame);
-        if !word_rects.is_empty() {
+        if word_rects.len() > self.options.min_word_count {
             if let Ok(lines) = ocr_engine.recognize_text(&input, &[word_rects]) {
                 // We only expect one line
                 if let Some(Some(line)) = lines.first() {

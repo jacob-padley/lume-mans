@@ -12,7 +12,7 @@ use std::sync::{
     Arc, Mutex,
 };
 
-use crate::detection::video::optimized_ocr::OptimizedOCRFrame;
+use crate::detection::video::optimized_ocr::{OptimizedOCRFrame, OptimizedOCRFrameOptions};
 use crate::detection::DetectionSource;
 use crate::detection::{SessionTime, TrackState};
 
@@ -31,14 +31,14 @@ struct RelativeBoundingBox {
 }
 
 // Minimum ratio of changed pixels to re-run OCR on a given region of the screen
-const STATUS_FRAME_DELTA_THRESHOLD: f64 = 0.03;
-const NOTIFICATION_FRAME_DELTA_THRESHOLD: f64 = 0.05;
+const STATUS_FRAME_DELTA_THRESHOLD: f64 = 0.05;
+const NOTIFICATION_FRAME_DELTA_THRESHOLD: f64 = 0.03;
 const TIMER_FRAME_DELTA_THRESHOLD: f64 = 0.01;
 
 // Maximum age in seconds of a cached frame before OCR must be re-run regardless of frame diff
 // result.
 const STATUS_MAX_FRAME_AGE: f64 = 1.0;
-const NOTIFICATION_MAX_FRAME_AGE: f64 = 3.0;
+const NOTIFICATION_MAX_FRAME_AGE: f64 = 1.5;
 const TIMER_MAX_FRAME_AGE: f64 = 1.0;
 
 // Bounding boxes for WEC broadcast graphics as of 2026
@@ -130,9 +130,18 @@ impl VideoSource {
             ocr_engine,
             capture_active: Arc::new(AtomicBool::new(false)),
             latest_frame: Arc::new(Mutex::new(None)),
-            status_ocr_frame: OptimizedOCRFrame::new(STATUS_FRAME_DELTA_THRESHOLD, STATUS_MAX_FRAME_AGE),
-            notification_ocr_frame: OptimizedOCRFrame::new(NOTIFICATION_FRAME_DELTA_THRESHOLD, NOTIFICATION_MAX_FRAME_AGE),
-            timer_ocr_frame: OptimizedOCRFrame::new(TIMER_FRAME_DELTA_THRESHOLD, TIMER_MAX_FRAME_AGE),
+            status_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
+                frame_delta_threshold: STATUS_FRAME_DELTA_THRESHOLD,
+                max_frame_age: STATUS_MAX_FRAME_AGE,
+                ..Default::default()
+            }),
+            notification_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
+                frame_delta_threshold: NOTIFICATION_FRAME_DELTA_THRESHOLD,
+                max_frame_age: NOTIFICATION_MAX_FRAME_AGE,
+                // "FCY will end at {time}", "VSC will end at {time}", "Safety car in this lap"
+                min_word_count: 4,
+            }),
+            timer_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions { frame_delta_threshold: TIMER_FRAME_DELTA_THRESHOLD, max_frame_age: TIMER_MAX_FRAME_AGE, ..Default::default() }),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
@@ -359,10 +368,11 @@ impl DetectionSource for VideoSource {
                 .into_luma8();
 
             // Read the session timer if it is available
-            let timer_option = match self
+            let debug_text = self
                 .timer_ocr_frame
-                .get_text(timer_cropped, &self.ocr_engine)
-            {
+                .get_text(timer_cropped, &self.ocr_engine);
+
+            let timer_option = match debug_text {
                 Some(ref timer_text)
                     if let Some(caps) = self.detection_patterns.timer.captures(timer_text) =>
                 {
@@ -403,11 +413,13 @@ impl DetectionSource for VideoSource {
             // Extract the rest of the relevant text
             let status_text = self
                 .status_ocr_frame
-                .get_text(status_cropped, &self.ocr_engine)?
+                .get_text(status_cropped, &self.ocr_engine)
+                .unwrap_or(String::from(""))
                 .to_uppercase();
             let notification_text = self
                 .notification_ocr_frame
-                .get_text(notification_cropped, &self.ocr_engine)?
+                .get_text(notification_cropped, &self.ocr_engine)
+                .unwrap_or(String::from(""))
                 .to_uppercase();
 
             // Detection priority order from this point on:
