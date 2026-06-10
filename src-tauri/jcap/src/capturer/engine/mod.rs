@@ -73,7 +73,7 @@ impl Engine {
 
         #[cfg(target_os = "windows")]
         {
-            let win = win::create_capturer(&options, tx)?;
+            let win = win::create_capturer(options, tx)?;
             Ok(Engine {
                 win,
                 options: (*options).clone(),

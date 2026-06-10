@@ -1,22 +1,14 @@
 use crate::{
-    capturer::{Area, Options, Point, Resolution, Size},
+    capturer::{Area, CapturerBuildError, Options, Point, Resolution, Size},
     frame::{AudioFormat, AudioFrame, BGRAFrame, Frame, FrameType, VideoFrame},
-    targets::{self, get_scale_factor, Target},
+    targets::{self, Target},
 };
-use ::windows::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    StreamInstant,
-};
-use std::time::{SystemTime, UNIX_EPOCH};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::{cmp, time::Duration};
 use std::{
-    cmp,
-    time::{Duration, Instant},
-};
-use std::{
-    os::windows,
-    ptr::null_mut,
-    sync::mpsc::{self, Receiver, RecvTimeoutError, Sender},
+    fmt::{self, Display, Formatter},
+    time::SystemTime,
 };
 use windows_capture::{
     capture::{CaptureControl, Context, GraphicsCaptureApiHandler},
@@ -161,10 +153,19 @@ pub enum CreateCapturerError {
     BuildAudioStream(cpal::BuildStreamError),
 }
 
+impl Display for CreateCapturerError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::AudioStreamConfig(err) => write!(f, "Audio Stream Configuration Error: {}", err),
+            Self::BuildAudioStream(err) => write!(f, "Build Audio Stream Error: {}", err),
+        }
+    }
+}
+
 pub fn create_capturer(
     options: &Options,
     tx: mpsc::Sender<Frame>,
-) -> Result<WCStream, CreateCapturerError> {
+) -> Result<WCStream, CapturerBuildError> {
     let target = options
         .target
         .clone()
@@ -181,10 +182,11 @@ pub fn create_capturer(
     };
 
     let draw_border = if GraphicsCaptureApi::is_border_settings_supported().unwrap_or(false) {
-        options
-            .show_highlight
-            .then_some(DrawBorderSettings::WithBorder)
-            .unwrap_or(DrawBorderSettings::WithoutBorder)
+        if options.show_highlight {
+            DrawBorderSettings::WithBorder
+        } else {
+            DrawBorderSettings::WithoutBorder
+        }
     } else {
         DrawBorderSettings::Default
     };
@@ -226,7 +228,7 @@ pub fn create_capturer(
 
         match ready_rx.recv() {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(e),
+            Ok(Err(e)) => return Err(CapturerBuildError::BadConfig(e.to_string())),
             Err(_) => panic!("Audio spawn panicked"),
         }
 
@@ -243,11 +245,6 @@ pub fn create_capturer(
 }
 
 pub fn get_output_frame_size(options: &Options) -> [u32; 2] {
-    let target = options
-        .target
-        .clone()
-        .unwrap_or_else(|| Target::Display(targets::get_main_display()));
-
     let crop_area = get_crop_area(options);
 
     let mut output_width = (crop_area.size.width) as u32;
@@ -271,7 +268,7 @@ pub fn get_output_frame_size(options: &Options) -> [u32; 2] {
     [output_width, output_height]
 }
 
-fn get_absolute_value(value: f64, scale_factor: f64) -> f64 {
+fn get_absolute_value(value: f64, _scale_factor: f64) -> f64 {
     let value = (value).floor();
     value + value % 2.0
 }
@@ -320,10 +317,11 @@ enum AudioStreamControl {
     Stop,
 }
 
+type BuildAudioStreamResult =
+    Result<(Vec<u8>, cpal::InputCallbackInfo, SystemTime), cpal::StreamError>;
+
 fn build_audio_stream(
-    sample_tx: mpsc::Sender<
-        Result<(Vec<u8>, cpal::InputCallbackInfo, SystemTime), cpal::StreamError>,
-    >,
+    sample_tx: mpsc::Sender<BuildAudioStreamResult>,
 ) -> Result<(cpal::Stream, cpal::SupportedStreamConfig), CreateCapturerError> {
     let host = cpal::default_host();
     let output_device =
@@ -401,7 +399,7 @@ fn spawn_audio_stream(
                 Err(_) => return,
             };
 
-            let (data, info, timestamp) = match sample_rx.recv_timeout(Duration::from_millis(100)) {
+            let (data, _, timestamp) = match sample_rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(Ok(data)) => data,
                 Err(RecvTimeoutError::Timeout) => {
                     continue;
@@ -424,7 +422,7 @@ fn spawn_audio_stream(
                 timestamp,
             );
 
-            if let Err(_) = tx.send(Frame::Audio(frame)) {
+            if tx.send(Frame::Audio(frame)).is_err() {
                 return;
             };
         }
