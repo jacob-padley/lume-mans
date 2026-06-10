@@ -69,7 +69,7 @@ pub fn get_scale_factor(target: &Target) -> f64 {
             )
             .is_ok()
             {
-                dpi_x.into()
+                dpi_x
             } else {
                 BASE_DPI
             }

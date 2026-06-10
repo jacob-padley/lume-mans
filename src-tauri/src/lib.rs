@@ -8,9 +8,8 @@ use std::net::Ipv4Addr;
 use std::sync::{atomic::AtomicBool, Arc, RwLock};
 use tauri::{path::BaseDirectory, Emitter, Manager};
 
-use crate::detection::state::TrackState;
-use crate::detection::state_machine::{TrackStateMachine, VideoStateMachine};
-use crate::detection::video::{VideoSource, VideoSourceOption};
+use crate::detection::video::{VideoSource, VideoSourceOption, VideoStateMachine};
+use crate::detection::{TrackState, TrackStateMachine};
 use crate::lighting::command::{
     LightingCommand, PlayPlaybackCommand, PlaybackHandle, ReleaseAllPlaybacksCommand,
 };

@@ -1,6 +1,6 @@
 [package]
 name = "lume-mans"
-version = "0.4.0"
+version = "0.5.0"
 description = "Live track status monitoring and lighting cues for the 24 Hours of Le Mans"
 authors = ["you"]
 edition = "2021"
@@ -34,3 +34,4 @@ regex = "1.12.3"
 jcap = { path = "jcap" }
 image = "0.25.10"
 reqwest = "0.13.4"
+rten-imageproc = "0.24.0"

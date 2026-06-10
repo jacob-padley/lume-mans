@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::sync::mpsc;
 
 use super::Options;
@@ -22,22 +21,18 @@ pub type ChannelItem = (
 #[cfg(not(target_os = "macos"))]
 pub type ChannelItem = Frame;
 
+#[cfg(target_os = "macos")]
 pub fn get_output_frame_size(options: &Options) -> [u32; 2] {
-    #[cfg(target_os = "macos")]
-    {
-        mac::get_output_frame_size(options)
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        win::get_output_frame_size(options)
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // TODO: How to calculate this on Linux?
-        [0, 0]
-    }
+    mac::get_output_frame_size(options)
+}
+#[cfg(target_os = "windows")]
+pub fn get_output_frame_size(options: &Options) -> [u32; 2] {
+    win::get_output_frame_size(options)
+}
+#[cfg(target_os = "linux")]
+pub fn get_output_frame_size(_options: &Options) -> [u32; 2] {
+    // TODO: How to calculate this on Linux?
+    [0, 0]
 }
 
 pub struct Engine {
@@ -78,7 +73,7 @@ impl Engine {
 
         #[cfg(target_os = "windows")]
         {
-            let win = win::create_capturer(&options, tx)?;
+            let win = win::create_capturer(options, tx)?;
             Ok(Engine {
                 win,
                 options: (*options).clone(),

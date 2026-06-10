@@ -15,10 +15,6 @@ export default defineNuxtConfig({
   routeRules: {
     '/': { prerender: true },
   },
-  // Enables the development server to be discoverable by other devices when running on iOS physical devices
-  devServer: {
-    host: '0',
-  },
 
   compatibilityDate: '2025-05-15',
   vite: {
