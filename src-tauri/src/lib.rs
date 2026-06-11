@@ -78,7 +78,9 @@ pub fn run() {
                         TrackState::SafetyCar | TrackState::VirtualSafetyCar => {
                             PlaybackHandle::UserNumber(1)
                         }
-                        TrackState::YellowFlag => PlaybackHandle::UserNumber(2),
+                        TrackState::YellowFlag | TrackState::SlowZone => {
+                            PlaybackHandle::UserNumber(2)
+                        }
                         TrackState::RedFlag => PlaybackHandle::UserNumber(3),
                         TrackState::SafetyCarEnding
                         | TrackState::FullCourseYellowEnding

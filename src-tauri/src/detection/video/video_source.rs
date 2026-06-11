@@ -103,6 +103,7 @@ struct VideoDetectionPatterns {
     session_end: Regex,
     green_flag: Regex,
     yellow_flag: Regex,
+    slow_zone: Regex,
     safety_car: Regex,
     virtual_safety_car: Regex,
     full_course_yellow: Regex,
@@ -155,6 +156,7 @@ impl VideoSource {
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
+                slow_zone: Regex::new(r"SLOW\W+ZONE").unwrap(),
                 safety_car: Regex::new(r"\bSC\b|SAFETY\W+CAR").unwrap(),
                 virtual_safety_car: Regex::new(r"\bVSC\b|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
                 full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
@@ -433,6 +435,7 @@ impl DetectionSource for VideoSource {
             //  VSC
             //  FCY
             //  Yellow Flag
+            //  Slow Zone
             //  Red Flag
             //  Neutral
             let mut state_option: Option<TrackState> = None;
@@ -476,6 +479,8 @@ impl DetectionSource for VideoSource {
                 state_option = Some(TrackState::FullCourseYellow);
             } else if self.detection_patterns.yellow_flag.is_match(&status_text) {
                 state_option = Some(TrackState::YellowFlag);
+            } else if self.detection_patterns.slow_zone.is_match(&status_text) {
+                state_option = Some(TrackState::SlowZone);
             } else if self.detection_patterns.red_flag.is_match(&status_text) {
                 state_option = Some(TrackState::RedFlag);
             } else if self.detection_patterns.neutral.is_match(&status_text) {

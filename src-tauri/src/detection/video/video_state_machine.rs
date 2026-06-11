@@ -50,6 +50,7 @@ impl TrackStateMachine for VideoStateMachine {
             if self.state != TrackState::CheckeredFlag {
                 // Check whether this state transition is allowed
                 if state == TrackState::GreenFlag
+                    || state == TrackState::SlowZone
                     || state == TrackState::YellowFlag
                     || state == TrackState::RedFlag
                     || state == TrackState::CheckeredFlag
@@ -68,6 +69,7 @@ impl TrackStateMachine for VideoStateMachine {
                     // can end if it disappears from the screen, but a Safety Car requires a
                     // transition to a Green Flag or Safety Car Ending first.
                     if self.state == TrackState::YellowFlag
+                        || self.state == TrackState::SlowZone
                         || self.state == TrackState::FullCourseYellowEnding
                         || self.state == TrackState::VirtualSafetyCarEnding
                         || self.state == TrackState::SafetyCarEnding
