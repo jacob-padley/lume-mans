@@ -1,6 +1,6 @@
 <template>
   <div
-    :class="`flex justify-center items-center font-mono uppercase text-xl tracking-wide ${statusClass(status)} rounded-xl`"
+    :class="`flex justify-center items-center font-mono ${status === 'Waiting' ? '' : 'font-semibold'} uppercase text-xl tracking-wide ${statusClass(status)} rounded-xl`"
   >
     <p class="flex text-center">
       {{ prettyStatus(status) }}
