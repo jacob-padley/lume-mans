@@ -1,4 +1,14 @@
-![Github banner](./.github/banner.gif)
+jcap
+====
+
+This is a fork of [CapSoftware/scap](https://github.com/CapSoftware/scap) which I have improved in order to suit my needs for this project. Notable changes to the original include:
+- Updated `libpipewire` to version `0.10.0` for better compatibility.
+- Updated `windows-capture` to version `2.0.0` for better compatibility.
+- Fixed compiler warnings on Windows and Linux builds.
+- Improved error propagation during capturer creation.
+
+scap
+====
 
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://cap.link/discord)
 [![Twitter](https://img.shields.io/badge/twitter-blue?style=for-the-badge&logo=twitter&logoColor=white&labelColor=%231DA1F2&color=%231DA1F2)](https://www.x.com/cap)
