@@ -19,6 +19,24 @@ pub struct OptimizedOCRFrameOptions {
     // than zero is assumed to be valid, otherwise any frames with a word count lower than this
     // will be assumed to be noise and ignored.
     pub min_word_count: usize,
+    // The pixel brightness value to use as a binary threshold boundary to distinguish text from
+    // background.
+    pub threshold: u8,
+    // The number of horizontal pixels to allow to violate the threshold before a given line is
+    // considered a part of text. Expressed as a fraction of the frame width.
+    pub horizontal_noise: f32,
+    // The number of vertical pixels to allow to violate the threshold before a given line is
+    // considered to be a part of text. Expressed as a fraction of the frame height.
+    pub vertical_noise: f32,
+    // The minimum number of pixels that constitute a space between two words. Expressed as a
+    // fraction of the frame width.
+    pub min_space_width: f32,
+    // The amount of padding to add to the left and right of the bounding boxes if space in the
+    // original frame allows. Expressed as a fraction of the frame width.
+    pub horizontal_padding: f32,
+    // The amount of padding to add to the top and bottom of the bounding boxes if space in the
+    // original frame allows. Expressed as a fraction of the frame height.
+    pub vertical_padding: f32,
 }
 
 impl Default for OptimizedOCRFrameOptions {
@@ -27,6 +45,12 @@ impl Default for OptimizedOCRFrameOptions {
             frame_delta_threshold: 0.05,
             max_frame_age: 1.0,
             min_word_count: 0,
+            threshold: 128,
+            horizontal_noise: 0.0,
+            vertical_noise: 0.0,
+            min_space_width: 0.0,
+            horizontal_padding: 0.0,
+            vertical_padding: 0.0,
         }
     }
 }
@@ -46,28 +70,24 @@ impl OptimizedOCRFrame {
         new_frame: ImageBuffer<Luma<u8>, Vec<u8>>,
         ocr_engine: &OcrEngine,
     ) -> Option<String> {
-        // DEBUG ONLY: time how long the whole frame takes to OCR
-        if self.last_frame_time.is_none() || self.last_frame.is_none() || self.last_text.is_none() {
+        if self.last_frame_time.is_none() || self.last_frame.is_none() {
             // This is the first frame or we have no cached text for this box
-            let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
+            self.last_text = self.run_ocr(&new_frame, ocr_engine).ok();
             self.last_frame = Some(new_frame);
             self.last_frame_time = Some(Instant::now());
-            self.last_text = Some(text.clone());
-            return Some(text);
+            return self.last_text.clone();
         } else if self.last_frame_time.unwrap().elapsed().as_secs_f64() > self.options.max_frame_age
             || self.get_frame_delta(&new_frame) > self.options.frame_delta_threshold
         {
             // The frame is new
-            let text = self.run_ocr(&new_frame, ocr_engine).ok()?;
+            self.last_text = self.run_ocr(&new_frame, ocr_engine).ok();
             self.last_frame = Some(new_frame);
             self.last_frame_time = Some(Instant::now());
-            self.last_text = Some(text.clone());
-            return Some(text);
+            return self.last_text.clone();
         }
-
         // Default to using the cached last text. We already checked that this is not none in the
         // earlier if statement so the unwrap is safe here.
-        Some(self.last_text.clone().unwrap())
+        self.last_text.clone()
     }
 
     fn run_ocr(
@@ -92,7 +112,7 @@ impl OptimizedOCRFrame {
 
     /// Returns the ratio of new pixels in this new frame compared with the cached frame.
     fn get_frame_delta(&self, new_frame: &ImageBuffer<Luma<u8>, Vec<u8>>) -> f64 {
-        let noise_threshold: u8 = 10;
+        let noise_threshold: u8 = 15;
         if let Some(ref last_frame) = self.last_frame {
             let num_changed_pixels = new_frame
                 .as_raw()
@@ -112,22 +132,12 @@ impl OptimizedOCRFrame {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
 
-        // TODO: tune these parameters and maybe set them per OCR application. Also make them a
-        // fraction of the frame size rather than absolute values where they are measurments of a
-        // number of pixels.
-        // Pixel brightness value to threshold on
-        let threshold = 128;
-        // Maximum number of odd pixels that can be present in a line before it is classified as
-        // text.
-        let horizontal_max = 4;
-        // Maximum number of odd pixels that can be present in a line before it is classified as
-        // text.
-        let vertical_max = 1;
-        // Minimum number of pixels needed to constitute a space character rather than just a gap
-        // between letters.
-        let min_space_width = 1;
-        // Amount of extra room to add around detected boxes if available.
-        let padding = 2;
+        let threshold = self.options.threshold;
+        let horizontal_noise = (self.options.horizontal_noise * width as f32).round() as i32;
+        let vertical_noise = (self.options.vertical_noise * height as f32).round() as i32;
+        let min_space_width = (self.options.min_space_width * width as f32).round() as i32;
+        let horizontal_padding = (self.options.horizontal_padding * width as f32).round() as usize;
+        let vertical_padding = (self.options.vertical_padding * height as f32).round() as usize;
 
         // Start by detecting whether the background colour is above or below the threshold.
         let corners = [
@@ -159,14 +169,14 @@ impl OptimizedOCRFrame {
             }
             if in_text {
                 // See if we have reached the end of the text
-                if sum < horizontal_max {
+                if sum < horizontal_noise {
                     in_text = false;
                     y_end = y;
                     break;
                 }
             } else {
                 // See if we have reached the start of the text
-                if sum > horizontal_max {
+                if sum > horizontal_noise {
                     in_text = true;
                     y_start = y;
                 }
@@ -192,7 +202,7 @@ impl OptimizedOCRFrame {
             }
             if in_text {
                 // See if we have reached the end of a word
-                if sum < vertical_max {
+                if sum < vertical_noise {
                     empty_space += 1;
                     if empty_space >= min_space_width {
                         in_text = false;
@@ -202,7 +212,7 @@ impl OptimizedOCRFrame {
                 }
             } else {
                 // See if we have reached the start of a word
-                if sum > vertical_max {
+                if sum > vertical_noise {
                     in_text = true;
                     x_start = x;
                     empty_space = 0;
@@ -222,20 +232,20 @@ impl OptimizedOCRFrame {
             .filter_map(|(x_start, x_end)| {
                 min_area_rect(&[
                     PointF {
-                        x: x_start.saturating_sub(padding) as f32,
-                        y: y_start.saturating_sub(padding) as f32,
+                        x: x_start.saturating_sub(horizontal_padding) as f32,
+                        y: y_start.saturating_sub(vertical_padding) as f32,
                     },
                     PointF {
-                        x: cmp::min(x_end.saturating_add(padding), width - 1) as f32,
-                        y: y_start.saturating_sub(padding) as f32,
+                        x: cmp::min(x_end.saturating_add(horizontal_padding), width - 1) as f32,
+                        y: y_start.saturating_sub(vertical_padding) as f32,
                     },
                     PointF {
-                        x: cmp::min(x_end.saturating_add(padding), width - 1) as f32,
-                        y: cmp::min(y_end.saturating_add(padding), height - 1) as f32,
+                        x: cmp::min(x_end.saturating_add(horizontal_padding), width - 1) as f32,
+                        y: cmp::min(y_end.saturating_add(vertical_padding), height - 1) as f32,
                     },
                     PointF {
-                        x: x_start.saturating_sub(padding) as f32,
-                        y: cmp::min(y_end.saturating_add(padding), height - 1) as f32,
+                        x: x_start.saturating_sub(horizontal_padding) as f32,
+                        y: cmp::min(y_end.saturating_add(vertical_padding), height - 1) as f32,
                     },
                 ])
             })

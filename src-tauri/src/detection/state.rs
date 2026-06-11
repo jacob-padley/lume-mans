@@ -4,6 +4,7 @@ pub enum TrackState {
     Neutral,
     GreenFlag,
     YellowFlag,
+    SlowZone,
     FullCourseYellow,
     FullCourseYellowEnding,
     SafetyCar,

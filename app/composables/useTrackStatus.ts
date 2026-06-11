@@ -6,6 +6,7 @@ const TrackStatusSchema = z.union([
   z.literal('SessionStart'),
   z.literal('GreenFlag'),
   z.literal('YellowFlag'),
+  z.literal('SlowZone'),
   z.literal('FullCourseYellow'),
   z.literal('FullCourseYellowEnding'),
   z.literal('SafetyCar'),

@@ -1,8 +1,8 @@
 <template>
   <div
-    :class="`flex justify-center items-center font-mono uppercase text-xl tracking-wide ${statusClass(status)} rounded-xl`"
+    :class="`flex justify-center items-center font-mono ${status === 'Waiting' || status === 'SessionStart' ? '' : 'font-semibold'} uppercase text-xl tracking-wide ${statusClass(status)} rounded-xl`"
   >
-    <p class="flex text-center">
+    <p class="flex text-center rounded-xl p-3">
       {{ prettyStatus(status) }}
     </p>
   </div>
@@ -18,6 +18,7 @@ const prettyStatusMap = {
   SessionStart: 'Waiting for Race Start',
   GreenFlag: 'Green Flag',
   YellowFlag: 'Yellow Flag',
+  SlowZone: 'Slow Zone',
   FullCourseYellow: 'FCY',
   FullCourseYellowEnding: 'FCY Ending',
   SafetyCar: 'Safety Car',
@@ -41,6 +42,7 @@ function statusClass(status: TrackStatus) {
     return 'bg-green-700';
   } else if (
     status === 'YellowFlag' ||
+    status === 'SlowZone' ||
     status === 'FullCourseYellow' ||
     status === 'FullCourseYellowEnding' ||
     status === 'SafetyCar' ||

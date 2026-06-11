@@ -1,4 +1,4 @@
-use image::{DynamicImage, ImageBuffer, Luma, Rgb, Rgba};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, Rgb, Rgba};
 use jcap::{
     capturer::{Capturer, Options, Resolution},
     frame::FrameType,
@@ -31,9 +31,9 @@ struct RelativeBoundingBox {
 }
 
 // Minimum ratio of changed pixels to re-run OCR on a given region of the screen
-const STATUS_FRAME_DELTA_THRESHOLD: f64 = 0.05;
-const NOTIFICATION_FRAME_DELTA_THRESHOLD: f64 = 0.03;
-const TIMER_FRAME_DELTA_THRESHOLD: f64 = 0.01;
+const STATUS_FRAME_DELTA_THRESHOLD: f64 = 0.07;
+const NOTIFICATION_FRAME_DELTA_THRESHOLD: f64 = 0.05;
+const TIMER_FRAME_DELTA_THRESHOLD: f64 = 0.05;
 
 // Maximum age in seconds of a cached frame before OCR must be re-run regardless of frame diff
 // result.
@@ -41,26 +41,34 @@ const STATUS_MAX_FRAME_AGE: f64 = 1.0;
 const NOTIFICATION_MAX_FRAME_AGE: f64 = 1.5;
 const TIMER_MAX_FRAME_AGE: f64 = 1.0;
 
-// Bounding boxes for WEC broadcast graphics as of 2026
+// Color thresholds used for detecting a "yellow" track status
+const YELLOW_MAX_R: u8 = 255;
+const YELLOW_MIN_R: u8 = 245;
+const YELLOW_MAX_G: u8 = 225;
+const YELLOW_MIN_G: u8 = 210;
+const YELLOW_MAX_B: u8 = 70;
+const YELLOW_MIN_B: u8 = 50;
+
+// Bounding boxes for WEC broadcast graphics as of 2026, expressed as fractions of the whole screen
 const STATUS_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
-    x: 0.049,
-    y: 0.153,
-    width: 0.156,
-    height: 0.032,
+    x: 78.0 / 1920.0,
+    y: 168.0 / 1080.0,
+    width: 300.0 / 1920.0,
+    height: 20.0 / 1080.0,
 };
 
 const TIMER_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
-    x: 0.052,
-    y: 0.111,
-    width: 0.143,
-    height: 0.032,
+    x: 102.0 / 1920.0,
+    y: 124.0 / 1080.0,
+    width: 181.0 / 1920.0,
+    height: 25.0 / 1080.0,
 };
 
 const NOTIFICATION_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
-    x: 0.430,
-    y: 0.069,
-    width: 0.271,
-    height: 0.037,
+    x: 830.0 / 1920.0,
+    y: 84.0 / 1080.0,
+    width: 270.0 / 1920.0,
+    height: 23.0 / 1080.0,
 };
 
 impl AbsoluteBoundingBox {
@@ -95,6 +103,7 @@ struct VideoDetectionPatterns {
     session_end: Regex,
     green_flag: Regex,
     yellow_flag: Regex,
+    slow_zone: Regex,
     safety_car: Regex,
     virtual_safety_car: Regex,
     full_course_yellow: Regex,
@@ -133,6 +142,11 @@ impl VideoSource {
             status_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
                 frame_delta_threshold: STATUS_FRAME_DELTA_THRESHOLD,
                 max_frame_age: STATUS_MAX_FRAME_AGE,
+                horizontal_noise: 4.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(STATUS_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(STATUS_BOUNDING_BOX.height * 1080.0),
                 ..Default::default()
             }),
             notification_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
@@ -140,13 +154,29 @@ impl VideoSource {
                 max_frame_age: NOTIFICATION_MAX_FRAME_AGE,
                 // "FCY will end at {time}", "VSC will end at {time}", "Safety car in this lap"
                 min_word_count: 4,
+                horizontal_noise: 4.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(NOTIFICATION_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(NOTIFICATION_BOUNDING_BOX.height * 1080.0),
+                ..Default::default()
             }),
-            timer_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions { frame_delta_threshold: TIMER_FRAME_DELTA_THRESHOLD, max_frame_age: TIMER_MAX_FRAME_AGE, ..Default::default() }),
+            timer_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
+                frame_delta_threshold: TIMER_FRAME_DELTA_THRESHOLD,
+                max_frame_age: TIMER_MAX_FRAME_AGE,
+                horizontal_noise: 4.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(TIMER_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(TIMER_BOUNDING_BOX.height * 1080.0),
+                ..Default::default()
+            }),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
                 green_flag: Regex::new(r"GREEN\W+FLAG").unwrap(),
                 yellow_flag: Regex::new(r"YELLOW\W+FLAG").unwrap(),
+                slow_zone: Regex::new(r"SLOW\W+ZONE").unwrap(),
                 safety_car: Regex::new(r"\bSC\b|SAFETY\W+CAR").unwrap(),
                 virtual_safety_car: Regex::new(r"\bVSC\b|VIRTUAL\W+SAFETY\W+CAR").unwrap(),
                 full_course_yellow: Regex::new(r"\bFCY\b|FULL\W+COURSE\W+YELLOW").unwrap(),
@@ -347,32 +377,26 @@ impl DetectionSource for VideoSource {
             );
 
             // Crop out the relevant parts of the image
-            let status_cropped = image
-                .crop_imm(
-                    status_box.x,
-                    status_box.y,
-                    status_box.width,
-                    status_box.height,
-                )
-                .into_luma8();
-            let timer_cropped = image
-                .crop_imm(timer_box.x, timer_box.y, timer_box.width, timer_box.height)
-                .into_luma8();
-            let notification_cropped = image
-                .crop_imm(
-                    notification_box.x,
-                    notification_box.y,
-                    notification_box.width,
-                    notification_box.height,
-                )
-                .into_luma8();
+            let status_cropped = image.crop_imm(
+                status_box.x,
+                status_box.y,
+                status_box.width,
+                status_box.height,
+            );
 
-            // Read the session timer if it is available
-            let debug_text = self
+            let timer_cropped =
+                image.crop_imm(timer_box.x, timer_box.y, timer_box.width, timer_box.height);
+            let notification_cropped = image.crop_imm(
+                notification_box.x,
+                notification_box.y,
+                notification_box.width,
+                notification_box.height,
+            );
+
+            let timer_option = match self
                 .timer_ocr_frame
-                .get_text(timer_cropped, &self.ocr_engine);
-
-            let timer_option = match debug_text {
+                .get_text(timer_cropped.into_luma8(), &self.ocr_engine)
+            {
                 Some(ref timer_text)
                     if let Some(caps) = self.detection_patterns.timer.captures(timer_text) =>
                 {
@@ -413,12 +437,12 @@ impl DetectionSource for VideoSource {
             // Extract the rest of the relevant text
             let status_text = self
                 .status_ocr_frame
-                .get_text(status_cropped, &self.ocr_engine)
+                .get_text(status_cropped.clone().into_luma8(), &self.ocr_engine)
                 .unwrap_or(String::from(""))
                 .to_uppercase();
             let notification_text = self
                 .notification_ocr_frame
-                .get_text(notification_cropped, &self.ocr_engine)
+                .get_text(notification_cropped.into_luma8(), &self.ocr_engine)
                 .unwrap_or(String::from(""))
                 .to_uppercase();
 
@@ -431,6 +455,7 @@ impl DetectionSource for VideoSource {
             //  VSC
             //  FCY
             //  Yellow Flag
+            //  Slow Zone
             //  Red Flag
             //  Neutral
             let mut state_option: Option<TrackState> = None;
@@ -474,10 +499,39 @@ impl DetectionSource for VideoSource {
                 state_option = Some(TrackState::FullCourseYellow);
             } else if self.detection_patterns.yellow_flag.is_match(&status_text) {
                 state_option = Some(TrackState::YellowFlag);
+            } else if self.detection_patterns.slow_zone.is_match(&status_text) {
+                state_option = Some(TrackState::SlowZone);
             } else if self.detection_patterns.red_flag.is_match(&status_text) {
                 state_option = Some(TrackState::RedFlag);
             } else if self.detection_patterns.neutral.is_match(&status_text) {
-                state_option = Some(TrackState::Neutral);
+                // Check that the status box background isn't yellow before resolving Neutral state
+                let corners = [
+                    status_cropped.get_pixel(0, 0),
+                    status_cropped.get_pixel(status_cropped.width() - 1, 0),
+                    status_cropped.get_pixel(0, status_cropped.height() - 1),
+                    status_cropped
+                        .get_pixel(status_cropped.width() - 1, status_cropped.height() - 1),
+                ];
+                let mut yellow_corners = 0;
+                for corner in corners {
+                    let r = corner[0];
+                    let g = corner[1];
+                    let b = corner[2];
+                    if r > YELLOW_MIN_R
+                        && r < YELLOW_MAX_R
+                        && g > YELLOW_MIN_G
+                        && g < YELLOW_MAX_G
+                        && b > YELLOW_MIN_B
+                        && b < YELLOW_MAX_B
+                    {
+                        // Corner is yellow
+                        yellow_corners += 1;
+                    }
+                }
+                if yellow_corners < 2 {
+                    // Background is not yellow
+                    state_option = Some(TrackState::Neutral);
+                }
             }
 
             return Some((state_option, timer_option));
