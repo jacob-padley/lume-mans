@@ -65,10 +65,10 @@ const TIMER_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
 };
 
 const NOTIFICATION_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
-    x: 0.430,
-    y: 0.069,
-    width: 0.271,
-    height: 0.037,
+    x: 830.0 / 1920.0,
+    y: 84.0 / 1080.0,
+    width: 270.0 / 1920.0,
+    height: 23.0 / 1080.0,
 };
 
 impl AbsoluteBoundingBox {
@@ -142,6 +142,11 @@ impl VideoSource {
             status_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
                 frame_delta_threshold: STATUS_FRAME_DELTA_THRESHOLD,
                 max_frame_age: STATUS_MAX_FRAME_AGE,
+                horizontal_noise: 4.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(STATUS_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(STATUS_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(STATUS_BOUNDING_BOX.height * 1080.0),
                 ..Default::default()
             }),
             notification_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
@@ -149,8 +154,23 @@ impl VideoSource {
                 max_frame_age: NOTIFICATION_MAX_FRAME_AGE,
                 // "FCY will end at {time}", "VSC will end at {time}", "Safety car in this lap"
                 min_word_count: 4,
+                horizontal_noise: 4.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(NOTIFICATION_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(NOTIFICATION_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(NOTIFICATION_BOUNDING_BOX.height * 1080.0),
+                ..Default::default()
             }),
-            timer_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions { frame_delta_threshold: TIMER_FRAME_DELTA_THRESHOLD, max_frame_age: TIMER_MAX_FRAME_AGE, ..Default::default() }),
+            timer_ocr_frame: OptimizedOCRFrame::new(OptimizedOCRFrameOptions {
+                frame_delta_threshold: TIMER_FRAME_DELTA_THRESHOLD,
+                max_frame_age: TIMER_MAX_FRAME_AGE,
+                horizontal_noise: 4.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                vertical_noise: 1.0/(TIMER_BOUNDING_BOX.height * 1080.0),
+                min_space_width: 1.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                horizontal_padding: 2.0/(TIMER_BOUNDING_BOX.width * 1920.0),
+                vertical_padding: 2.0/(TIMER_BOUNDING_BOX.height * 1080.0),
+                ..Default::default()
+            }),
             detection_patterns: VideoDetectionPatterns {
                 timer: Regex::new(r"(?:(\d{0,2}):)?(\d{1,2}):(\d{1,2})").unwrap(),
                 session_end: Regex::new(r"\bFINISH\b").unwrap(),
