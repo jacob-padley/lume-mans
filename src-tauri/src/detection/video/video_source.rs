@@ -51,7 +51,7 @@ const YELLOW_MIN_B: u8 = 50;
 
 // Bounding boxes for WEC broadcast graphics as of 2026, expressed as fractions of the whole screen
 const STATUS_BOUNDING_BOX: RelativeBoundingBox = RelativeBoundingBox {
-    x: 91.0 / 1920.0,
+    x: 78.0 / 1920.0,
     y: 168.0 / 1080.0,
     width: 300.0 / 1920.0,
     height: 20.0 / 1080.0,
