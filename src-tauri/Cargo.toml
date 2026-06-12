@@ -1,6 +1,6 @@
 [package]
 name = "lume-mans"
-version = "0.5.0"
+version = "1.0.0"
 description = "Live track status monitoring and lighting cues for the 24 Hours of Le Mans"
 authors = ["you"]
 edition = "2021"
