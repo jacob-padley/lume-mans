@@ -12,6 +12,7 @@
     :ui="{
       item: 'font-mono',
     }"
+    @update:open="(isOpen) => isOpen && emit('open')"
   />
 </template>
 
@@ -22,6 +23,9 @@ const model = defineModel<{ id: number; source_type: SourceType }>();
 const props = defineProps<{
   inputs: VideoInputList;
   disabled: boolean;
+}>();
+const emit = defineEmits<{
+  (e: 'open'): void;
 }>();
 
 type InputOption = {
