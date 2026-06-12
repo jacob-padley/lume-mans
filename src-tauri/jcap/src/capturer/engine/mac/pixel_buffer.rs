@@ -1,18 +1,16 @@
 use cidre::{arc, cm, sc};
 use std::sync::mpsc;
 
-use crate::capturer::RawCapturer;
+use crate::capturer::Capturer;
 
-impl RawCapturer<'_> {
+impl Capturer {
     pub fn get_next_sample_buffer(
         &self,
     ) -> Result<(arc::R<cm::SampleBuf>, sc::stream::OutputType), mpsc::RecvError> {
         use std::time::Duration;
 
-        let capturer = &self.capturer;
-
         loop {
-            let error_flag = capturer
+            let error_flag = self
                 .engine
                 .error_flag
                 .load(std::sync::atomic::Ordering::Relaxed);
@@ -20,7 +18,7 @@ impl RawCapturer<'_> {
                 return Err(mpsc::RecvError);
             }
 
-            return match capturer.rx.recv_timeout(Duration::from_millis(10)) {
+            return match self.rx.recv_timeout(Duration::from_millis(10)) {
                 Ok(v) => Ok(v),
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
                 Err(mpsc::RecvTimeoutError::Disconnected) => Err(mpsc::RecvError),

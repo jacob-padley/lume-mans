@@ -18,6 +18,7 @@
       :inputs="availableInputs"
       :disabled="captureEnabled"
       class="w-3/4"
+      @open="refreshAvailableInputs"
     />
     <span class="font-mono text-sm text-slate-400 uppercase mt-8 mb-3">Override Track Status</span>
     <StatusOverrideButton
@@ -43,7 +44,7 @@ const captureEnabled = ref(false);
 const videoInput = ref<{ id: number; source_type: SourceType }>();
 
 const { lastFrameTime } = useMetrics();
-const { availableInputs } = useVideoInputs();
+const { availableInputs, refreshAvailableInputs } = useVideoInputs();
 const toast = useToast();
 const { copy } = useClipboard();
 

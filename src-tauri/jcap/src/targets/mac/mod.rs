@@ -1,4 +1,4 @@
-use cidre::{cg, ns, sc};
+use cidre::{cg, sc};
 use cocoa::appkit::{NSApp, NSScreen};
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSRect, NSString, NSUInteger};
@@ -56,15 +56,22 @@ pub fn get_all_targets() -> Vec<Target> {
 
     // Add windows to targets
     for window in content.windows().iter() {
+        if !window.is_on_screen() || window.window_layer() != 0 {
+            continue;
+        }
+
         let id = window.id();
         let title = window
             .title()
             // on intel chips we can have Some but also a null pointer for some reason
-            .filter(|v| !unsafe { v.utf8_chars_ar().is_null() });
+            .filter(|v| !unsafe { v.utf8_chars_ar().is_null() })
+            .map(|v| v.to_string())
+            .or_else(|| window.owning_app().map(|app| app.app_name().to_string()))
+            .unwrap_or_default();
 
         let target = Target::Window(super::Window {
             id,
-            title: title.map(|v| v.to_string()).unwrap_or_default(),
+            title,
             raw_handle: id,
         });
         targets.push(target);
