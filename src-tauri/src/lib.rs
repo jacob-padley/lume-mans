@@ -86,7 +86,7 @@ pub fn run() {
                         | TrackState::FullCourseYellowEnding
                         | TrackState::VirtualSafetyCarEnding => PlaybackHandle::UserNumber(6),
                         TrackState::FullCourseYellow => PlaybackHandle::UserNumber(7),
-                        // TODO: checkered flag event
+                        TrackState::CheckeredFlag => PlaybackHandle::UserNumber(8),
                         _ => continue,
                     };
 
