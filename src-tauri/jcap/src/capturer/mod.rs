@@ -65,7 +65,6 @@ pub struct Capturer {
     rx: mpsc::Receiver<ChannelItem>,
 }
 
-#[cfg(target_os = "windows")]
 impl Resolution {
     fn value(&self, aspect_ratio: f32) -> [u32; 2] {
         match *self {

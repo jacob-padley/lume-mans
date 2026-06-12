@@ -10,6 +10,7 @@ use cidre::{
 };
 use futures::executor::block_on;
 
+use crate::capturer::CapturerBuildError;
 use crate::frame::{AudioFormat, AudioFrame, Frame, FrameType, VideoFrame};
 use crate::targets::Target;
 use crate::{
@@ -41,8 +42,8 @@ impl sc::stream::DelegateImpl for ErrorHandler {
     extern "C" fn impl_stream_did_stop_with_err(
         &mut self,
         _cmd: Option<&objc::Sel>,
-        stream: &sc::Stream,
-        error: &ns::Error,
+        _stream: &sc::Stream,
+        _error: &ns::Error,
     ) {
         eprintln!("Screen capture error occurred.");
         self.inner_mut()
@@ -81,6 +82,20 @@ pub(crate) enum CreateCapturerError {
     WindowNotFound(String),
     #[error("Display with title '{0}' not found")]
     DisplayNotFound(String),
+}
+
+impl From<CreateCapturerError> for CapturerBuildError {
+    fn from(err: CreateCapturerError) -> Self {
+        match err {
+            CreateCapturerError::DisplayNotFound(_) => {
+                CapturerBuildError::BadConfig("Display not found".to_string())
+            }
+            CreateCapturerError::WindowNotFound(_) => {
+                CapturerBuildError::BadConfig("Window not found".to_string())
+            }
+            CreateCapturerError::OtherNative(_) => CapturerBuildError::PermissionNotGranted,
+        }
+    }
 }
 
 pub(crate) fn create_capturer(
