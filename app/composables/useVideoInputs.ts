@@ -15,23 +15,38 @@ export type VideoInput = z.infer<typeof VideoInputSchema>;
 const VideoInputListSchema = z.array(VideoInputSchema);
 export type VideoInputList = z.infer<typeof VideoInputListSchema>;
 
+const getVideoInputs = async (): Promise<VideoInputList> => {
+  const inputs = await invoke('list_inputs');
+
+  const parsedInputs = VideoInputListSchema.safeParse(inputs);
+
+  if (!parsedInputs.success) {
+    console.error(parsedInputs.error);
+    throw new Error(parsedInputs.error.message);
+  }
+
+  return parsedInputs.data;
+};
+
 export function useVideoInputs() {
   const availableInputs = ref<VideoInputList>([]);
+  const loading = ref(false);
+
+  const refreshAvailableInputs = async () => {
+    loading.value = true;
+
+    try {
+      availableInputs.value = await getVideoInputs();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading.value = false;
+    }
+  };
 
   onMounted(() => {
-    invoke('list_inputs')
-      .then((inputs) => {
-        const parsedInputs = VideoInputListSchema.safeParse(inputs);
-        if (parsedInputs.success) {
-          availableInputs.value = parsedInputs.data;
-        } else {
-          console.error(parsedInputs.error);
-        }
-      })
-      .catch((e) => {
-        console.error(e);
-      });
+    refreshAvailableInputs();
   });
 
-  return { availableInputs };
+  return { availableInputs, loading, refreshAvailableInputs };
 }
