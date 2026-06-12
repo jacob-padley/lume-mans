@@ -30,17 +30,12 @@ const getVideoInputs = async (): Promise<VideoInputList> => {
 
 export function useVideoInputs() {
   const availableInputs = ref<VideoInputList>([]);
-  const loading = ref(false);
 
   const refreshAvailableInputs = async () => {
-    loading.value = true;
-
     try {
       availableInputs.value = await getVideoInputs();
     } catch (e) {
       console.error(e);
-    } finally {
-      loading.value = false;
     }
   };
 
@@ -48,5 +43,5 @@ export function useVideoInputs() {
     refreshAvailableInputs();
   });
 
-  return { availableInputs, loading, refreshAvailableInputs };
+  return { availableInputs, refreshAvailableInputs };
 }

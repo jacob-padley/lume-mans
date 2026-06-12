@@ -13,20 +13,13 @@
       :disabled="!videoInput && availableInputs.length > 0"
       class="mt-7 mb-3 w-40"
     />
-    <div class="flex flex-row items-center justify-center gap-2 w-full">
-      <VideoInputMenu
-        v-model="videoInput"
-        :inputs="availableInputs"
-        :disabled="captureEnabled"
-        class="w-3/4"
-      />
-      <UButton
-        icon="i-lucide-refresh-cw"
-        class="bg-slate-500 hover:bg-slate-600 active:bg-slate-600 text-slate-100"
-        :disabled="loading"
-        @click="refreshAvailableInputs"
-      />
-    </div>
+    <VideoInputMenu
+      v-model="videoInput"
+      :inputs="availableInputs"
+      :disabled="captureEnabled"
+      class="w-3/4"
+      @open="refreshAvailableInputs"
+    />
     <span class="font-mono text-sm text-slate-400 uppercase mt-8 mb-3">Override Track Status</span>
     <StatusOverrideButton
       class="mb-2 font-mono bg-slate-500 hover:bg-slate-600 active:bg-slate-600 text-slate-100 uppercase"
@@ -51,7 +44,7 @@ const captureEnabled = ref(false);
 const videoInput = ref<{ id: number; source_type: SourceType }>();
 
 const { lastFrameTime } = useMetrics();
-const { availableInputs, loading, refreshAvailableInputs } = useVideoInputs();
+const { availableInputs, refreshAvailableInputs } = useVideoInputs();
 const toast = useToast();
 const { copy } = useClipboard();
 
